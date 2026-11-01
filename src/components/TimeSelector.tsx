@@ -6,7 +6,7 @@ import { Clock, BookOpen, Sparkles, Bookmark, ArrowRight, Play } from 'lucide-re
 
 interface TimeSelectorProps {
   user: UserProfile;
-  onStartSession: (durationMinutes: number) => void;
+  onStartSession: (durationMinutes: number, sessionMode: 'listen' | 'read') => void;
   onOpenSettings: () => void;
   onResetToBeginning?: () => void;
 }
@@ -18,6 +18,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
 }) => {
   const [customTime, setCustomTime] = useState<number>(10);
   const [selectedTime, setSelectedTime] = useState<number>(10);
+  const [sessionMode, setSessionMode] = useState<'listen' | 'read'>('listen');
 
   const presets = [
     { minutes: 5, label: '5 Mins', badge: 'Quick Reflection', verses: '2-3 verses' },
@@ -173,6 +174,67 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
           </div>
         </div>
 
+        {/* Session Mode Selector: Continuous Verse/Listen Mode vs Self-Paced Read Mode */}
+        <div className="bg-[#140505] rounded-2xl p-4 sm:p-5 border border-amber-500/30 mb-6">
+          <div className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-3 flex items-center gap-2">
+            <span>Choose How You Wish to Experience Today's Session:</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setSessionMode('listen')}
+              className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                sessionMode === 'listen'
+                  ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/20 text-amber-100 ring-1 ring-amber-400/50'
+                  : 'bg-[#1b0808] border-amber-900/60 text-amber-200/70 hover:border-amber-700'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-base flex items-center gap-2 text-amber-200">
+                    🎧 Continuous Verse Mode (Hands-Free)
+                  </span>
+                  {sessionMode === 'listen' && (
+                    <span className="text-[10px] bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded-full uppercase">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-amber-300/80 leading-relaxed mt-1">
+                  Plays automatically from verse to verse without having to touch the screen or press next. Chants the Sanskrit shloka, speaks the meaning, and reads the <strong>inner reflection</strong> aloud.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSessionMode('read')}
+              className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                sessionMode === 'read'
+                  ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/20 text-amber-100 ring-1 ring-amber-400/50'
+                  : 'bg-[#1b0808] border-amber-900/60 text-amber-200/70 hover:border-amber-700'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-base flex items-center gap-2 text-amber-200">
+                    📖 Self-Paced Reading Mode
+                  </span>
+                  {sessionMode === 'read' && (
+                    <span className="text-[10px] bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded-full uppercase">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-amber-300/80 leading-relaxed mt-1">
+                  Read and meditate at your own pace. Click or tap to move to the next verse whenever you are ready, with on-demand audio whenever desired.
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Dynamic Session Preview */}
         <div className="bg-gradient-to-r from-amber-500/15 via-[#2a0e0e] to-amber-500/10 rounded-2xl p-5 border border-amber-500/30 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -184,16 +246,18 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
                 Curated: <span className="text-amber-300 font-bold">{calculation.count} Shlokas</span> starting from Chapter {calculation.shlokas[0]?.chapter}, Verse {calculation.shlokas[0]?.verse}
               </div>
               <p className="text-xs text-amber-200/70">
-                Covers Sanskrit chant, transliteration, English & Hindi meanings, plus contemplative commentary in ~{calculation.estimatedMinutes} minutes.
+                {sessionMode === 'listen'
+                  ? `Hands-free continuous audio with Inner Reflection for ~${calculation.estimatedMinutes} minutes.`
+                  : `Self-paced reading with transliteration and commentary for ~${calculation.estimatedMinutes} minutes.`}
               </p>
             </div>
 
             <button
-              onClick={() => onStartSession(selectedTime)}
+              onClick={() => onStartSession(selectedTime, sessionMode)}
               className="flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-base shadow-xl shadow-amber-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] shrink-0"
             >
               <Play className="w-5 h-5 fill-current" />
-              <span>Begin {selectedTime} Min Session</span>
+              <span>Begin {selectedTime} Min {sessionMode === 'listen' ? 'Continuous Audio' : 'Reading'}</span>
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

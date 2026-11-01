@@ -25,6 +25,7 @@ interface ReadingSessionProps {
   initialIndex: number;
   totalSessionMinutes: number;
   user: UserProfile;
+  initialMode?: 'listen' | 'read';
   onFinishSession: (updatedShlokaIndex: number, completedIds: number[], minutesSpent: number) => void;
   onExitEarly: (updatedShlokaIndex: number, completedIds: number[], minutesSpent: number) => void;
 }
@@ -34,11 +35,13 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   initialIndex,
   totalSessionMinutes,
   user,
+  initialMode = 'listen',
   onFinishSession,
   onExitEarly
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<'bilingual' | 'english' | 'hindi'>('bilingual');
+  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(initialMode === 'listen');
   const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only'>(
     user.preferredLanguage === 'hindi' ? 'sanskrit_then_hindi' : 'sanskrit_then_english'
   );
@@ -109,65 +112,122 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   };
 
   // Listen mode TTS logic
-  const handleToggleListen = async () => {
-    if (isSpeaking) {
-      gitaSpeech.cancel();
-      setIsSpeaking(false);
-      return;
-    }
+  // Recite a specific shloka index
+  const playShloka = async (idxToPlay: number, autoAdvance: boolean) => {
+    const targetShloka = shlokas[idxToPlay];
+    if (!targetShloka) return;
 
     setIsSpeaking(true);
     try {
       if (listenLanguage === 'sanskrit_then_english') {
         // Step 1: Sanskrit verse
         await gitaSpeech.speak({
-          text: currentShloka.sanskrit,
+          text: targetShloka.sanskrit,
           lang: 'hi',
           gender: voiceGender,
           rate: 0.84
         });
-        // Step 2: English translation
+        // Step 2: English meaning
         await gitaSpeech.speak({
-          text: currentShloka.englishMeaning,
+          text: targetShloka.englishMeaning,
           lang: 'en',
           gender: voiceGender,
           rate: 0.92
         });
+        // Step 3: Inner Reflection
+        if (targetShloka.commentaryEnglish) {
+          await gitaSpeech.speak({
+            text: `Inner Reflection: ${targetShloka.commentaryEnglish}`,
+            lang: 'en',
+            gender: voiceGender,
+            rate: 0.90
+          });
+        }
       } else if (listenLanguage === 'sanskrit_then_hindi') {
         // Step 1: Sanskrit verse
         await gitaSpeech.speak({
-          text: currentShloka.sanskrit,
+          text: targetShloka.sanskrit,
           lang: 'hi',
           gender: voiceGender,
           rate: 0.84
         });
         // Step 2: Hindi Bhavarth
         await gitaSpeech.speak({
-          text: currentShloka.hindiMeaning,
+          text: targetShloka.hindiMeaning,
           lang: 'hi',
           gender: voiceGender,
           rate: 0.88
         });
+        // Step 3: Inner Reflection (Chintan)
+        if (targetShloka.commentaryHindi) {
+          await gitaSpeech.speak({
+            text: `चिन्तन: ${targetShloka.commentaryHindi}`,
+            lang: 'hi',
+            gender: voiceGender,
+            rate: 0.86
+          });
+        }
       } else if (listenLanguage === 'english_only') {
         await gitaSpeech.speak({
-          text: `${currentShloka.englishMeaning}. ${currentShloka.commentaryEnglish || ''}`,
+          text: `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish || ''}`,
           lang: 'en',
           gender: voiceGender,
           rate: 0.92
         });
       } else if (listenLanguage === 'hindi_only') {
         await gitaSpeech.speak({
-          text: `${currentShloka.hindiMeaning}। ${currentShloka.commentaryHindi || ''}`,
+          text: `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi || ''}`,
           lang: 'hi',
           gender: voiceGender,
           rate: 0.88
         });
       }
+
+      // Mark current verse as completed
+      if (!completedIds.includes(targetShloka.id)) {
+        setCompletedIds(prev => Array.from(new Set([...prev, targetShloka.id])));
+      }
+
+      // Automatic advance in continuous verse mode
+      if (autoAdvance) {
+        if (idxToPlay < shlokas.length - 1) {
+          // Meditative pause between verses
+          await new Promise(r => setTimeout(r, 900));
+          setCurrentIdx(idxToPlay + 1);
+        } else {
+          setIsSpeaking(false);
+          handleSessionCompletion();
+        }
+      }
     } catch (err) {
       console.warn('Speech recitation error:', err);
     } finally {
-      setIsSpeaking(false);
+      if (!autoAdvance || idxToPlay >= shlokas.length - 1) {
+        setIsSpeaking(false);
+      }
     }
+  };
+
+  // If in Continuous Verse Mode, automatically start chanting when loaded or when index changes
+  useEffect(() => {
+    if (isContinuousMode) {
+      playShloka(currentIdx, true);
+    }
+    return () => {
+      gitaSpeech.cancel();
+    };
+  }, [currentIdx, isContinuousMode, listenLanguage, voiceGender]);
+
+  const handleToggleListen = async () => {
+    if (isSpeaking) {
+      gitaSpeech.cancel();
+      setIsSpeaking(false);
+      setIsContinuousMode(false); // Pausing turns off continuous auto-advance
+      return;
+    }
+
+    // When clicking play, toggle continuous mode if user desires continuous listening
+    setIsContinuousMode(true);
   };
 
   const handleNext = () => {
@@ -350,15 +410,21 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
               {isSpeaking ? (
                 <>
                   <Pause className="w-4 h-4 fill-current" />
-                  <span>Pause Recitation</span>
+                  <span>Pause {isContinuousMode ? 'Continuous Audio' : 'Recitation'}</span>
                 </>
               ) : (
                 <>
                   <Volume2 className="w-4 h-4 fill-current" />
-                  <span>Listen to Shloka</span>
+                  <span>{isContinuousMode ? 'Resume Continuous Audio' : 'Play Continuous Verses'}</span>
                 </>
               )}
             </button>
+
+            {/* Continuous Auto-Advance Indicator */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#140505] border border-amber-500/40 text-[11px] text-amber-300">
+              <span className={`w-2 h-2 rounded-full ${isContinuousMode && isSpeaking ? 'bg-emerald-400 animate-ping' : 'bg-amber-500'}`} />
+              <span>{isContinuousMode ? 'Hands-Free Auto Advance ON' : 'Self-Paced'}</span>
+            </div>
 
             {/* Listen Language Selector */}
             <select

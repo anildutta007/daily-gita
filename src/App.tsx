@@ -25,6 +25,7 @@ export function App() {
     durationMinutes: number;
     shlokas: Shloka[];
     initialIndex: number;
+    sessionMode: 'listen' | 'read';
   } | null>(null);
 
   // Initialize profile on mount
@@ -69,7 +70,7 @@ export function App() {
     setIsAuthOpen(false);
   };
 
-  const handleStartSession = (durationMinutes: number) => {
+  const handleStartSession = (durationMinutes: number, sessionMode: 'listen' | 'read' = 'listen') => {
     if (!user) return;
     const { shlokas, startIndex } = calculateShlokasForTime(
       durationMinutes,
@@ -80,7 +81,8 @@ export function App() {
     setActiveSession({
       durationMinutes,
       shlokas,
-      initialIndex: startIndex
+      initialIndex: startIndex,
+      sessionMode
     });
   };
 
@@ -249,6 +251,7 @@ export function App() {
             initialIndex={activeSession.initialIndex}
             totalSessionMinutes={activeSession.durationMinutes}
             user={user}
+            initialMode={activeSession.sessionMode}
             onFinishSession={handleFinishSession}
             onExitEarly={handleExitEarly}
           />
