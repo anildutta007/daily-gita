@@ -126,42 +126,42 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     setIsSpeaking(true);
     try {
       if (listenLanguage === 'sanskrit_then_english') {
-        // Step 1: Chant Sanskrit verse
+        // Step 1: Sanskrit verse with reverent clarity
         await gitaSpeech.speak({
           text: currentShloka.sanskrit,
-          lang: 'hi-IN',
-          rate: 0.85
+          lang: 'hi',
+          rate: 0.84
         });
-        // Step 2: Read English translation & meaning
+        // Step 2: English meaning with warm, expressive tone
         await gitaSpeech.speak({
-          text: `English Translation: ${currentShloka.englishMeaning}`,
-          lang: 'en-IN',
-          rate: 0.95
+          text: currentShloka.englishMeaning,
+          lang: 'en',
+          rate: 0.92
         });
       } else if (listenLanguage === 'sanskrit_then_hindi') {
         // Step 1: Sanskrit verse
         await gitaSpeech.speak({
           text: currentShloka.sanskrit,
-          lang: 'hi-IN',
-          rate: 0.85
+          lang: 'hi',
+          rate: 0.84
         });
-        // Step 2: Hindi Bhavarth
+        // Step 2: Hindi Bhavarth with natural cadence
         await gitaSpeech.speak({
-          text: `हिंदी भावार्थ: ${currentShloka.hindiMeaning}`,
-          lang: 'hi-IN',
-          rate: 0.9
+          text: currentShloka.hindiMeaning,
+          lang: 'hi',
+          rate: 0.88
         });
       } else if (listenLanguage === 'english_only') {
         await gitaSpeech.speak({
-          text: `Chapter ${currentShloka.chapter}, Verse ${currentShloka.verse}. ${currentShloka.englishMeaning}. Practical wisdom: ${currentShloka.commentaryEnglish || ''}`,
-          lang: 'en-IN',
-          rate: 0.95
+          text: `${currentShloka.englishMeaning}. ${currentShloka.commentaryEnglish || ''}`,
+          lang: 'en',
+          rate: 0.92
         });
       } else if (listenLanguage === 'hindi_only') {
         await gitaSpeech.speak({
-          text: `अध्याय ${currentShloka.chapter}, श्लोक ${currentShloka.verse}। ${currentShloka.hindiMeaning}। विचार: ${currentShloka.commentaryHindi || ''}`,
-          lang: 'hi-IN',
-          rate: 0.9
+          text: `${currentShloka.hindiMeaning}। ${currentShloka.commentaryHindi || ''}`,
+          lang: 'hi',
+          rate: 0.88
         });
       }
     } catch (err) {
