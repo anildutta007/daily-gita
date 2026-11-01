@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Shloka } from './types';
-import { GITA_SHLOKAS } from './data/shlokas';
 import {
   getStoredProfile,
   saveStoredProfile,
   removeStoredProfile,
-  DEFAULT_PROFILE,
   calculateShlokasForTime
 } from './utils/storage';
 import { AuthModal } from './components/AuthModal';
@@ -13,18 +11,8 @@ import { TimeSelector } from './components/TimeSelector';
 import { ReadingSession } from './components/ReadingSession';
 import { ProfileModal } from './components/ProfileModal';
 import { ChapterBrowserModal } from './components/ChapterBrowserModal';
-import {
-  Compass,
-  User,
-  LogOut,
-  Sparkles,
-  BookOpen,
-  Volume2,
-  Clock,
-  Flame,
-  Sun,
-  ShieldCheck
-} from 'lucide-react';
+import { BookOpen, LogOut } from 'lucide-react';
+import chariotBanner from './assets/krishna-arjuna-banner.png';
 
 export function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -43,7 +31,6 @@ export function App() {
   useEffect(() => {
     const stored = getStoredProfile();
     if (stored) {
-      // Check streak calculation
       const today = new Date().toISOString().split('T')[0];
       if (stored.lastActiveDate !== today) {
         const lastDate = new Date(stored.lastActiveDate);
@@ -59,18 +46,15 @@ export function App() {
       }
       setUser(stored);
     } else {
-      // Show login/registration modal on first open
       setIsAuthOpen(true);
     }
   }, []);
 
-  // Update and persist user
   const handleUpdateUser = (updated: UserProfile) => {
     setUser(updated);
     saveStoredProfile(updated);
   };
 
-  // User logs out: clears stored session and returns to login modal
   const handleLogout = () => {
     removeStoredProfile();
     setUser(null);
@@ -79,14 +63,12 @@ export function App() {
     setIsAuthOpen(true);
   };
 
-  // Login handler
   const handleLogin = (newProfile: UserProfile) => {
     setUser(newProfile);
     saveStoredProfile(newProfile);
     setIsAuthOpen(false);
   };
 
-  // Start reading session with requested minutes
   const handleStartSession = (durationMinutes: number) => {
     if (!user) return;
     const { shlokas, startIndex } = calculateShlokasForTime(
@@ -102,7 +84,6 @@ export function App() {
     });
   };
 
-  // Complete session & persist progress
   const handleFinishSession = (
     updatedShlokaIndex: number,
     completedIds: number[],
@@ -128,7 +109,6 @@ export function App() {
     setActiveSession(null);
   };
 
-  // Early pause & save
   const handleExitEarly = (
     updatedShlokaIndex: number,
     completedIds: number[],
@@ -145,7 +125,6 @@ export function App() {
     setActiveSession(null);
   };
 
-  // Handle jump to verse from browser
   const handleSelectShloka = (shlokaIndex: number) => {
     if (!user) return;
     const updated: UserProfile = {
@@ -156,27 +135,23 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200">
+    <div className="min-h-screen bg-[#140505] text-[#fbf5e6] flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200">
       
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      {/* Top Temple Navigation Bar */}
+      <header className="sticky top-0 z-40 bg-[#1e0707]/95 backdrop-blur-md border-b border-amber-500/30 px-4 sm:px-8 py-3 flex items-center justify-between shadow-lg shadow-black/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-md shadow-amber-500/20">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-amber-300 font-serif text-xl font-bold">
-              🕉️
-            </div>
+          {/* Om Emblem at top */}
+          <div className="w-10 h-10 rounded-full bg-[#f59e0b] flex items-center justify-center text-[#1a0808] font-serif text-2xl font-bold shadow-md shadow-amber-500/40">
+            ॐ
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-serif font-extrabold text-base sm:text-lg text-amber-200 tracking-wide">
+              <span className="font-serif font-black text-lg sm:text-xl text-amber-200 tracking-wide">
                 Daily Gita
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400">
-                Timeless Wisdom
-              </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Sacred shlokas tailored to your daily schedule & time
+            <p className="text-[11px] text-amber-300/70 font-hindi">
+              श्रीमद्भगवद्गीता • sacred shlokas for your daily practice
             </p>
           </div>
         </div>
@@ -185,31 +160,31 @@ export function App() {
         <div className="flex items-center gap-2 sm:gap-3">
           {user ? (
             <>
-              {/* Chapter explorer trigger */}
+              {/* 18 Chapters button */}
               <button
                 onClick={() => setIsBrowserOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-amber-300 hover:border-amber-500/40 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#2a0e0e] border border-amber-600/40 text-xs font-semibold text-amber-200 hover:text-amber-100 hover:border-amber-400 transition-all"
                 title="Browse all 18 chapters"
               >
                 <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden md:inline">18 Chapters</span>
+                <span className="hidden sm:inline">18 Chapters</span>
               </button>
 
-              {/* Profile / Preferences pill */}
+              {/* Profile Pill */}
               <button
                 onClick={() => setIsProfileOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition-all"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2a0e0e] border border-amber-600/40 text-amber-200 text-xs font-semibold hover:border-amber-400 transition-all"
               >
-                <div className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-[10px]">
+                <div className="w-5 h-5 rounded-full bg-[#f59e0b] text-[#1a0808] flex items-center justify-center font-bold text-[10px]">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="max-w-[90px] truncate">{user.name}</span>
+                <span className="max-w-[100px] truncate">{user.name}</span>
               </button>
 
-              {/* Direct Logout shortcut button */}
+              {/* Direct Logout shortcut */}
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-all"
+                className="p-2 rounded-full bg-[#2a0e0e] border border-amber-600/40 text-amber-300/70 hover:text-rose-400 hover:border-rose-500/40 transition-all"
                 title="Log out (resumes here upon next login)"
               >
                 <LogOut className="w-4 h-4" />
@@ -218,7 +193,7 @@ export function App() {
           ) : (
             <button
               onClick={() => setIsAuthOpen(true)}
-              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all"
+              className="px-4 py-2 rounded-full bg-[#f59e0b] hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-md"
             >
               Log In / Register
             </button>
@@ -226,20 +201,44 @@ export function App() {
         </div>
       </header>
 
+      {/* Hero Chariot Painting & Karmanye Vadhikaraste Verse (As in screenshot) */}
+      <section className="relative overflow-hidden w-full bg-[#180505]">
+        {/* Krishna & Arjuna on Chariot Painting */}
+        <div className="relative w-full max-h-[380px] sm:max-h-[460px] overflow-hidden flex items-center justify-center">
+          <img
+            src={chariotBanner}
+            alt="Lord Krishna and Arjuna on the Chariot at Kurukshetra"
+            className="w-full object-cover object-center max-h-[460px] filter brightness-[0.92] contrast-[1.05]"
+          />
+          {/* Subtle top/bottom shadow blending */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#140505] via-transparent to-[#1a0808]/40 pointer-events-none" />
+        </div>
+
+        {/* Karmanye Vadhikaraste Verse Below Painting */}
+        <div className="relative z-10 text-center py-5 px-4 bg-[#140505]">
+          <h2 className="font-serif text-xl sm:text-2xl text-amber-300 font-bold tracking-wide">
+            कर्मण्येवाधिकारस्ते मा फलेषु कदाचन
+          </h2>
+          <p className="text-amber-200/80 font-serif italic text-xs sm:text-sm mt-1">
+            “You have a right to your actions, never to their fruits.”
+          </p>
+        </div>
+      </section>
+
       {/* Main Content Area */}
-      <main className="flex-1 py-4 sm:py-8">
+      <main className="flex-1 py-4 sm:py-8 bg-[#140505]">
         {!user ? (
-          <div className="max-w-md mx-auto text-center py-20 px-4">
-            <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center text-4xl mb-4">
-              🕉️
+          <div className="max-w-md mx-auto text-center py-16 px-4">
+            <div className="w-16 h-16 rounded-full bg-[#f59e0b] text-[#1a0808] mx-auto flex items-center justify-center text-3xl font-serif mb-4 shadow-lg shadow-amber-500/30">
+              ॐ
             </div>
-            <h2 className="text-2xl font-bold text-amber-200">Experience the Bhagavad Gita</h2>
-            <p className="text-slate-400 text-sm mt-2 mb-6">
+            <h2 className="text-2xl font-bold font-serif text-amber-200">Experience the Bhagavad Gita</h2>
+            <p className="text-amber-200/70 text-sm mt-2 mb-6">
               Read and listen to the sacred teachings comfortably in 5, 10, or 20 minutes each day. Never lose your place.
             </p>
             <button
               onClick={() => setIsAuthOpen(true)}
-              className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/20 transition-all"
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition-all"
             >
               Create Seeker Profile to Begin
             </button>
@@ -262,13 +261,13 @@ export function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 px-4 border-t border-slate-900 bg-slate-950/60 text-center text-xs text-slate-500 space-y-1">
-        <p>
-          "योगस्थः कुरु कर्माणि सङ्गं त्यक्त्वा धनञ्जय" — Perform duty with equanimity.
+      {/* Footer with "Hari Om Tat Sat" (As requested) */}
+      <footer className="py-6 px-4 border-t border-amber-900/40 bg-[#0d0303] text-center text-xs text-amber-300/60 space-y-1">
+        <p className="font-serif tracking-widest text-amber-400 text-sm">
+          ॥ हरिः ॐ तत् सत् ॥
         </p>
-        <p className="text-[11px] text-slate-600">
-          Daily Gita Companion • Sanskrit Chanting, English & Hindi Bhavarth, Multilingual Audio
+        <p className="text-[11px] text-amber-300/40">
+          Daily Gita Companion • Sacred Shlokas at your pace
         </p>
       </footer>
 

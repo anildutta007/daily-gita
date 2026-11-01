@@ -4,9 +4,7 @@ import { CHAPTER_METADATA } from '../data/chapterMeta';
 import { gitaSpeech } from '../utils/speech';
 import { ambientSound } from '../utils/ambientSound';
 import {
-  Play,
   Pause,
-  RotateCcw,
   Volume2,
   VolumeX,
   ChevronLeft,
@@ -17,9 +15,7 @@ import {
   Sparkles,
   BookOpen,
   Globe,
-  Sliders,
   LogOut,
-  Share2,
   List
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -41,7 +37,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   onFinishSession,
   onExitEarly
 }) => {
-  const [currentIdx, setCurrentIdx] = useState(0); // index inside current session shlokas
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<'bilingual' | 'english' | 'hindi'>('bilingual');
   const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only'>(
     user.preferredLanguage === 'hindi' ? 'sanskrit_then_hindi' : 'sanskrit_then_english'
@@ -54,12 +50,10 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
 
   // Time tracking
   const [secondsRemaining, setSecondsRemaining] = useState(totalSessionMinutes * 60);
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
 
   // Bookmarks & Completed in current session
   const [completedIds, setCompletedIds] = useState<number[]>(user.completedShlokaIds || []);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>(user.bookmarkedIds || []);
-  const [showShlokaList, setShowShlokaList] = useState(false);
 
   const currentShloka: Shloka = shlokas[currentIdx] || shlokas[0];
   const chapterMeta = CHAPTER_METADATA.find(c => c.chapter === currentShloka?.chapter);
@@ -77,7 +71,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
 
   // Timer countdown
   useEffect(() => {
-    if (!isTimerRunning) return;
     const interval = setInterval(() => {
       setSecondsRemaining(prev => {
         if (prev <= 1) {
@@ -89,9 +82,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
+  }, []);
 
-  // Handle ambient sound switch
   const handleToggleAmbient = () => {
     if (ambientPlaying) {
       ambientSound.stop();
@@ -126,13 +118,13 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     setIsSpeaking(true);
     try {
       if (listenLanguage === 'sanskrit_then_english') {
-        // Step 1: Sanskrit verse with reverent clarity
+        // Step 1: Sanskrit verse
         await gitaSpeech.speak({
           text: currentShloka.sanskrit,
           lang: 'hi',
           rate: 0.84
         });
-        // Step 2: English meaning with warm, expressive tone
+        // Step 2: English translation
         await gitaSpeech.speak({
           text: currentShloka.englishMeaning,
           lang: 'en',
@@ -145,7 +137,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           lang: 'hi',
           rate: 0.84
         });
-        // Step 2: Hindi Bhavarth with natural cadence
+        // Step 2: Hindi Bhavarth
         await gitaSpeech.speak({
           text: currentShloka.hindiMeaning,
           lang: 'hi',
@@ -171,11 +163,9 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     }
   };
 
-  // Next shloka
   const handleNext = () => {
     gitaSpeech.cancel();
     setIsSpeaking(false);
-    // Mark current shloka completed
     if (!completedIds.includes(currentShloka.id)) {
       setCompletedIds([...completedIds, currentShloka.id]);
     }
@@ -206,11 +196,10 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     gitaSpeech.cancel();
     ambientSound.stop();
     confetti({
-      particleCount: 80,
+      particleCount: 90,
       spread: 70,
       origin: { y: 0.6 }
     });
-    // Calculate global index to resume from next time
     const finalNextIndex = Math.min(initialIndex + currentIdx + 1, 32);
     const minutesSpent = Math.max(1, Math.round((totalSessionMinutes * 60 - secondsRemaining) / 60));
     onFinishSession(finalNextIndex, completedIds, minutesSpent);
@@ -224,33 +213,30 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     onExitEarly(finalNextIndex, completedIds, minutesSpent);
   };
 
-  // Format time remaining mm:ss
   const mins = Math.floor(secondsRemaining / 60);
   const secs = secondsRemaining % 60;
   const timeFormatted = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Top Floating Control Bar */}
-      <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/80 backdrop-blur-lg shadow-xl">
+      <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#220a0a]/90 border border-amber-500/30 backdrop-blur-lg shadow-xl shadow-black/40">
         <button
           onClick={handleExit}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-200/80 hover:text-amber-100 hover:bg-[#351010] transition-all"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-4 h-4 text-amber-400" />
           <span>Pause & Save</span>
         </button>
 
         {/* Center Progress & Timer */}
         <div className="flex items-center gap-3">
-          {/* Timer pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/80 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold shadow-inner">
-            <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin-slow" />
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#140505] border border-amber-500/40 text-amber-300 text-xs font-mono font-bold shadow-inner">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
             <span>{timeFormatted} left</span>
           </div>
 
-          {/* Shloka counter */}
-          <div className="text-xs text-slate-300 font-medium">
+          <div className="text-xs text-amber-200/90 font-medium">
             Verse <span className="text-amber-400 font-bold">{currentIdx + 1}</span> of {shlokas.length}
           </div>
         </div>
@@ -262,19 +248,18 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
             title={ambientPlaying ? 'Mute sacred background' : 'Play sacred background'}
             className={`p-2 rounded-xl text-xs transition-all flex items-center gap-1.5 border ${
               ambientPlaying
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
-                : 'bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
+                : 'bg-[#1b0808] text-amber-200/60 border-amber-900/60 hover:text-amber-200'
             }`}
           >
             {ambientPlaying ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
             <span className="hidden sm:inline capitalize">{ambientType}</span>
           </button>
 
-          {/* Sound selector dropdown */}
           <select
             value={ambientType}
             onChange={(e) => handleAmbientChange(e.target.value as any)}
-            className="bg-slate-950 text-xs text-slate-300 border border-slate-700 rounded-xl px-2 py-1.5 focus:outline-none focus:border-amber-400"
+            className="bg-[#140505] text-xs text-amber-300 border border-amber-700/60 rounded-xl px-2 py-1.5 focus:outline-none focus:border-amber-400"
           >
             <option value="flute">🪈 Bansuri Flute</option>
             <option value="tanpura">🪕 Tanpura Drone</option>
@@ -284,22 +269,19 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         </div>
       </div>
 
-      {/* Main Scripture Contemplation Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-amber-500/20 p-6 sm:p-10 shadow-2xl backdrop-blur-md">
+      {/* Main Temple Card Container */}
+      <div className="relative rounded-3xl bg-gradient-to-b from-[#2a0c0c] to-[#1c0808] border border-amber-500/40 p-6 sm:p-10 shadow-2xl shadow-black/80">
         
-        {/* Subtle Decorative Golden Mandala / Arc in BG */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Chapter & Verse Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4 mb-6">
+        {/* Chapter Header */}
+        <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">
-              Chapter {currentShloka.chapter}: {chapterMeta?.nameSanskrit} ({chapterMeta?.nameTransliteration})
+              CHAPTER {currentShloka.chapter} • {chapterMeta?.nameSanskrit}
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-100">
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-amber-100 tracking-tight">
               {chapterMeta?.nameEnglish}
             </h2>
-            <div className="text-xs text-slate-400 font-hindi">
+            <div className="text-sm text-amber-300/80 font-hindi mt-0.5">
               {chapterMeta?.nameHindi}
             </div>
           </div>
@@ -307,51 +289,55 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleToggleBookmark(currentShloka.id)}
-              className={`p-2.5 rounded-xl border transition-all ${
+              className={`p-2.5 rounded-full border transition-all ${
                 bookmarkedIds.includes(currentShloka.id)
                   ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
-                  : 'bg-slate-800/40 border-slate-700/60 text-slate-400 hover:text-slate-200'
+                  : 'bg-[#1b0808] border-amber-700/50 text-amber-300/60 hover:text-amber-200'
               }`}
               title="Bookmark this shloka"
             >
               <Bookmark className={`w-4 h-4 ${bookmarkedIds.includes(currentShloka.id) ? 'fill-current' : ''}`} />
             </button>
-            <span className="px-3 py-1 rounded-full bg-slate-800 text-amber-300 font-mono text-xs font-semibold border border-slate-700">
+            <span className="px-3 py-1 rounded-full bg-[#f59e0b] text-[#1a0808] text-xs font-bold shadow-md">
               Verse {currentShloka.verse}
             </span>
           </div>
         </div>
 
-        {/* Primary Sacred Sanskrit Devanagari Script */}
-        <div className="my-6 text-center space-y-4">
-          <div className="p-6 sm:p-8 rounded-2xl bg-amber-950/20 border border-amber-500/25 shadow-inner">
-            <p className="font-serif text-2xl sm:text-3xl md:text-4xl text-amber-100 leading-relaxed font-bold tracking-wide whitespace-pre-line drop-shadow-sm select-text">
-              {currentShloka.sanskrit}
-            </p>
-          </div>
-
-          {/* Transliteration */}
-          <p className="font-serif italic text-sm sm:text-base text-amber-300/80 max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
-            {currentShloka.transliteration}
-          </p>
-
-          {currentShloka.wordMeanings && (
-            <div className="pt-2 text-xs text-slate-400 font-mono max-w-xl mx-auto border-t border-slate-800/60">
-              <span className="text-amber-400/80 font-bold">Word Meanings: </span>
-              {currentShloka.wordMeanings}
-            </div>
-          )}
+        {/* Golden Lotus Divider */}
+        <div className="my-6 flex items-center justify-center gap-3">
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent flex-1" />
+          <span className="text-amber-400 text-sm select-none">🪷</span>
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent flex-1" />
         </div>
 
-        {/* Listen Mode Bar (English & Hindi) */}
-        <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 my-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full md:w-auto">
+        {/* Parchment-coloured Sanskrit Shloka Box with Rotating Faint Om Behind */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#faf3e0] text-[#2c1810] p-8 sm:p-10 shadow-xl border border-amber-300/80 text-center my-6">
+          {/* Rotating Faint Om In Background */}
+          <div className="absolute right-6 top-1/2 -translate-y-1/2 select-none pointer-events-none opacity-[0.09] text-amber-900 text-[180px] sm:text-[230px] font-serif leading-none animate-spin-slow">
+            ॐ
+          </div>
+
+          <p className="relative z-10 font-serif text-2xl sm:text-3xl md:text-4xl leading-relaxed sm:leading-loose font-bold tracking-wide text-[#3a1d0f] whitespace-pre-line select-text">
+            {currentShloka.sanskrit}
+          </p>
+        </div>
+
+        {/* Transliteration */}
+        <p className="text-center font-serif italic text-sm sm:text-base text-amber-200/80 max-w-2xl mx-auto leading-relaxed whitespace-pre-line my-4">
+          {currentShloka.transliteration}
+        </p>
+
+        {/* Glowing Listen Button & Language Selection */}
+        <div className="my-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#1d0707] border border-amber-500/30">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            {/* Glowing Listen Button as in screenshot */}
             <button
               onClick={handleToggleListen}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md ${
+              className={`flex items-center justify-center gap-2.5 px-6 py-3 rounded-full font-bold text-sm tracking-wide transition-all shadow-lg ${
                 isSpeaking
-                  ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse'
-                  : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/20'
+                  ? 'bg-amber-400 text-slate-950 shadow-amber-400/50 ring-4 ring-amber-400/40 animate-pulse'
+                  : 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-amber-500/40 hover:shadow-amber-400/60 hover:scale-105 active:scale-95'
               }`}
             >
               {isSpeaking ? (
@@ -361,135 +347,129 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                 </>
               ) : (
                 <>
-                  <Volume2 className="w-4 h-4" />
-                  <span>Listen Mode</span>
+                  <Volume2 className="w-4 h-4 fill-current" />
+                  <span>Listen to Shloka</span>
                 </>
               )}
             </button>
 
-            {/* Language Selection for TTS */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
-              <select
-                value={listenLanguage}
-                onChange={(e) => {
-                  gitaSpeech.cancel();
-                  setIsSpeaking(false);
-                  setListenLanguage(e.target.value as any);
-                }}
-                className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-amber-200 focus:outline-none focus:border-amber-400"
-              >
-                <option value="sanskrit_then_english">Chant Sanskrit + English Meaning</option>
-                <option value="sanskrit_then_hindi">Chant Sanskrit + हिंदी भावार्थ</option>
-                <option value="english_only">English Voice Only</option>
-                <option value="hindi_only">हिंदी केवल (Hindi Voice Only)</option>
-              </select>
-            </div>
+            {/* Listen Language Selector */}
+            <select
+              value={listenLanguage}
+              onChange={(e) => {
+                gitaSpeech.cancel();
+                setIsSpeaking(false);
+                setListenLanguage(e.target.value as any);
+              }}
+              className="bg-[#2a0c0c] border border-amber-500/40 rounded-full px-3 py-2 text-xs text-amber-200 focus:outline-none focus:border-amber-400"
+            >
+              <option value="sanskrit_then_hindi">Sanskrit chant + हिंदी भावार्थ</option>
+              <option value="sanskrit_then_english">Sanskrit chant + English meaning</option>
+              <option value="english_only">English voice only</option>
+              <option value="hindi_only">हिंदी केवल (Hindi only)</option>
+            </select>
           </div>
 
-          <div className="text-xs text-slate-400 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Theme: <strong className="text-amber-300">{currentShloka.theme || 'Spiritual Awakening'}</strong></span>
+          <div className="text-xs text-amber-300/80 font-medium">
+            Theme: <strong className="text-amber-400">{currentShloka.theme || 'Spiritual Awakening'}</strong>
           </div>
         </div>
 
-        {/* Translation Mode Tabs: Bilingual / English / Hindi */}
-        <div className="mt-8 space-y-4">
-          <div className="flex border-b border-slate-800">
+        {/* Bilingual / English / Hindi Pill Buttons (Redesigned as requested) */}
+        <div className="my-6">
+          <div className="flex items-center justify-center p-1 rounded-full bg-[#170505] border border-amber-500/30 max-w-md mx-auto">
             <button
               onClick={() => setActiveTab('bilingual')}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-all ${
+              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'bilingual'
-                  ? 'border-amber-400 text-amber-200'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
+                  : 'text-amber-200/70 hover:text-amber-100'
               }`}
             >
-              Bilingual (Both)
+              Bilingual
             </button>
             <button
               onClick={() => setActiveTab('english')}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-all ${
+              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
                 activeTab === 'english'
-                  ? 'border-amber-400 text-amber-200'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
+                  : 'text-amber-200/70 hover:text-amber-100'
               }`}
             >
-              English Translation
+              English
             </button>
             <button
               onClick={() => setActiveTab('hindi')}
-              className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 transition-all font-hindi ${
+              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold font-hindi transition-all ${
                 activeTab === 'hindi'
-                  ? 'border-amber-400 text-amber-200'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
+                  : 'text-amber-200/70 hover:text-amber-100'
               }`}
             >
-              हिंदी भावार्थ
+              हिंदी
             </button>
-          </div>
-
-          {/* Meaning Content Box */}
-          <div className="space-y-4 pt-2">
-            {(activeTab === 'bilingual' || activeTab === 'english') && (
-              <div className="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>English Translation</span>
-                </div>
-                <p className="text-slate-200 text-sm sm:text-base leading-relaxed">
-                  {currentShloka.englishMeaning}
-                </p>
-                {currentShloka.commentaryEnglish && (
-                  <div className="mt-3 pt-3 border-t border-slate-800/60 text-xs sm:text-sm text-slate-400 italic">
-                    <span className="text-amber-400/90 font-semibold not-italic">Inner Reflection: </span>
-                    {currentShloka.commentaryEnglish}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {(activeTab === 'bilingual' || activeTab === 'hindi') && (
-              <div className="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/80 font-hindi">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 font-sans">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>हिंदी सरल भावार्थ</span>
-                </div>
-                <p className="text-slate-200 text-base sm:text-lg leading-relaxed">
-                  {currentShloka.hindiMeaning}
-                </p>
-                {currentShloka.commentaryHindi && (
-                  <div className="mt-3 pt-3 border-t border-slate-800/60 text-xs sm:text-sm text-slate-400 italic">
-                    <span className="text-amber-400/90 font-semibold not-italic font-sans">चिन्तन: </span>
-                    {currentShloka.commentaryHindi}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Navigation Actions */}
-        <div className="mt-8 pt-6 border-t border-slate-800 flex items-center justify-between gap-4">
+        {/* Meaning Content Box with Gold Border Accent */}
+        <div className="space-y-4 pt-2">
+          {(activeTab === 'bilingual' || activeTab === 'english') && (
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#1d0707] border-l-4 border-amber-500 border border-amber-500/20 shadow-md">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2">
+                ENGLISH TRANSLATION
+              </div>
+              <p className="text-amber-100 text-base sm:text-lg leading-relaxed font-serif">
+                {currentShloka.englishMeaning}
+              </p>
+              {currentShloka.commentaryEnglish && (
+                <div className="mt-3 pt-3 border-t border-amber-900/50 text-xs sm:text-sm text-amber-300/80 italic font-serif">
+                  <span className="text-amber-400 font-semibold not-italic">Inner Reflection: </span>
+                  {currentShloka.commentaryEnglish}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(activeTab === 'bilingual' || activeTab === 'hindi') && (
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#1d0707] border-l-4 border-amber-500 border border-amber-500/20 shadow-md font-hindi">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2 font-sans">
+                हिंदी सरल भावार्थ
+              </div>
+              <p className="text-amber-100 text-lg sm:text-xl leading-relaxed">
+                {currentShloka.hindiMeaning}
+              </p>
+              {currentShloka.commentaryHindi && (
+                <div className="mt-3 pt-3 border-t border-amber-900/50 text-xs sm:text-sm text-amber-300/80 italic">
+                  <span className="text-amber-400 font-semibold not-italic font-sans">चिन्तन: </span>
+                  {currentShloka.commentaryHindi}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Navigation Buttons */}
+        <div className="mt-8 pt-6 border-t border-amber-900/60 flex items-center justify-between gap-4">
           <button
             onClick={handlePrev}
             disabled={currentIdx === 0}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full border text-sm font-semibold transition-all ${
               currentIdx === 0
-                ? 'opacity-40 cursor-not-allowed border-slate-800 text-slate-600'
-                : 'border-slate-700 bg-slate-800/50 text-slate-200 hover:bg-slate-800'
+                ? 'opacity-30 cursor-not-allowed border-amber-950 text-amber-900'
+                : 'border-amber-600/50 bg-[#200808] text-amber-200 hover:bg-[#2e0c0c] hover:border-amber-500'
             }`}
           >
             <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Previous Verse</span>
+            <span>Previous Verse</span>
           </button>
 
-          <div className="text-xs text-slate-400 hidden sm:block">
-            {currentIdx + 1} of {shlokas.length} in this {totalSessionMinutes}-minute session
+          <div className="text-xs text-amber-300/60 hidden sm:block">
+            {currentIdx + 1} of {shlokas.length} in this session
           </div>
 
           <button
             onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-sm font-bold shadow-lg shadow-amber-500/20 transition-all transform active:scale-95"
+            className="flex items-center gap-2 px-7 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-sm font-bold shadow-lg shadow-amber-500/30 transition-all transform active:scale-95"
           >
             <span>
               {currentIdx === shlokas.length - 1 ? 'Complete Session 🌟' : 'Next Verse'}
@@ -498,12 +478,17 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           </button>
         </div>
 
+        {/* Bottom Sacred Chant */}
+        <div className="mt-8 text-center text-xs tracking-widest text-amber-400/70 uppercase font-serif">
+          ॥ हरिः ॐ तत् सत् ॥
+        </div>
+
       </div>
 
       {/* Verses In This Session Quick Jump Tray */}
-      <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+      <div className="p-4 rounded-2xl bg-[#220a0a]/60 border border-amber-500/30">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-2">
+          <div className="text-xs uppercase tracking-wider text-amber-400/80 font-semibold flex items-center gap-2">
             <List className="w-3.5 h-3.5 text-amber-400" />
             <span>Verses in this {totalSessionMinutes}-minute session</span>
           </div>
@@ -526,10 +511,10 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                 }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border shrink-0 transition-all flex items-center gap-1.5 ${
                   isCurrent
-                    ? 'bg-amber-500 border-amber-400 text-slate-950 font-bold shadow-sm'
+                    ? 'bg-amber-500 border-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/20'
                     : isDone
-                    ? 'bg-slate-800/80 border-emerald-500/40 text-emerald-300'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                    ? 'bg-[#1e130d] border-emerald-500/50 text-emerald-300'
+                    : 'bg-[#140505] border-amber-900/60 text-amber-200/60 hover:text-amber-200'
                 }`}
               >
                 <span>Ch.{s.chapter} V.{s.verse}</span>

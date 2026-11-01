@@ -8,25 +8,38 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Cinzel', 'Noto Serif Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0b0f19;
-  color: #f1f5f9;
+  background-color: #1a0808;
+  color: #fbf5e6;
 }
 
-/* Custom scrollbars */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 45s linear infinite;
+}
+
+/* Custom scrollbars with warm temple gold */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: #140505;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(234, 179, 8, 0.3);
+  background: #d49a37;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(234, 179, 8, 0.6);
+  background: #f59e0b;
 }
