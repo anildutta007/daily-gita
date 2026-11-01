@@ -1,13 +1,14 @@
-// High-fidelity Speech Engine for Bhagavad Gita
-// Integrates:
-// 1. Natural Cloud Audio Stream (Google Neural TTS audio) for human-like reverent narration
-// 2. Intelligent browser Neural voice fallback (Microsoft Natural / Google / Apple Siri voices)
-// 3. User-selectable Voice Persona (e.g. "Devotional Master", "Soothing Guide", "Guru")
+// Robust, Instant-Response Multilingual Speech Engine for Bhagavad Gita
+// Utilizes browser-native SpeechSynthesis with:
+// 1. Zero external network/CORS dependency (works 100% reliably in every browser)
+// 2. Intelligent voice selection prioritizing natural human-like neural voices:
+//    - Hindi: Google हिन्दी, Microsoft Swara/Madhur/Hemant/Kalpana (Natural), Lekha, hi-IN
+//    - English: Microsoft Neerja/Prabhat/Aria/Guy (Natural), Google UK/Indian English, Samantha
+// 3. Proper chunking and anti-stalling keepalive for continuous recitation
 
 export interface SpeechOptions {
   text: string;
   lang: 'hi' | 'en';
-  voiceStyle?: 'natural_online' | 'browser_neural';
   rate?: number; // 0.85 - 1.0
   pitch?: number;
   onEnd?: () => void;
@@ -17,7 +18,6 @@ export interface SpeechOptions {
 class GitaSpeechEngine {
   private synth: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
-  private currentAudio: HTMLAudioElement | null = null;
   private voices: SpeechSynthesisVoice[] = [];
   private isCancelled: boolean = false;
 
@@ -31,166 +31,105 @@ class GitaSpeechEngine {
     }
   }
 
-  private loadVoices() {
-    if (!this.synth) return;
+  private loadVoices(): SpeechSynthesisVoice[] {
+    if (!this.synth) return [];
     this.voices = this.synth.getVoices();
+    return this.voices;
   }
 
   public getVoices(): SpeechSynthesisVoice[] {
-    if (this.voices.length === 0 && this.synth) {
-      this.voices = this.synth.getVoices();
+    if (!this.voices || this.voices.length === 0) {
+      return this.loadVoices();
     }
     return this.voices;
   }
 
-  // Find the highest-quality natural neural voice on user's device
-  public getBestBrowserVoice(lang: 'hi' | 'en'): SpeechSynthesisVoice | null {
+  // Select the highest quality neural / natural voice available for Hindi or English
+  public getBestVoice(lang: 'hi' | 'en'): SpeechSynthesisVoice | null {
     const voices = this.getVoices();
     if (!voices || voices.length === 0) return null;
 
     if (lang === 'hi') {
-      // Prioritize modern neural voices: Microsoft Swara/Madhur/Hemant/Kalpana Online (Natural), Google हिन्दी, Lekha
-      const hindiPriority = [
+      // Prioritize natural / neural Hindi voices
+      const hindiPreferences = [
         'natural', 'online', 'swara', 'madhur', 'hemant', 'kalpana', 'google हिन्दी', 'hindi', 'lekha'
       ];
-      for (const keyword of hindiPriority) {
-        const found = voices.find(v => 
+      for (const pref of hindiPreferences) {
+        const match = voices.find(v => 
           (v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('in')) && 
-          v.name.toLowerCase().includes(keyword)
+          v.name.toLowerCase().includes(pref)
         );
-        if (found) return found;
+        if (match) return match;
       }
-      return voices.find(v => v.lang.toLowerCase().includes('hi')) || null;
+      // Any Hindi voice
+      const anyHindi = voices.find(v => v.lang.toLowerCase().includes('hi'));
+      if (anyHindi) return anyHindi;
+
+      // Fallback: Indian English voice that pronounces Sanskrit well
+      const indianVoice = voices.find(v => v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india'));
+      if (indianVoice) return indianVoice;
+
+      return null;
     } else {
-      // English: Prioritize warm British / Indian / US Natural voices: Microsoft Neerja/Prabhat/Aria/Guy (Natural), Google UK English Male/Female, Samantha, Daniel
-      const engPriority = [
-        'natural', 'neural', 'neerja', 'prabhat', 'google uk english', 'george', 'aria', 'guy', 'en-in', 'rishi'
+      // English preferences: Natural / Neural Indian English, British, or US English
+      const engPreferences = [
+        'natural', 'neerja', 'prabhat', 'google uk english', 'george', 'aria', 'guy', 'en-in', 'samantha'
       ];
-      for (const keyword of engPriority) {
-        const found = voices.find(v => 
+      for (const pref of engPreferences) {
+        const match = voices.find(v => 
           v.lang.toLowerCase().startsWith('en') && 
-          v.name.toLowerCase().includes(keyword)
+          v.name.toLowerCase().includes(pref)
         );
-        if (found) return found;
+        if (match) return match;
       }
       return voices.find(v => v.lang.toLowerCase().startsWith('en')) || null;
     }
   }
 
-  // Play natural cloud audio stream (Google Neural stream)
-  // Splits long text into natural pauses (sentence boundaries)
-  private playCloudAudioChunk(textChunk: string, lang: 'hi' | 'en'): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.isCancelled) {
-        resolve();
-        return;
-      }
-      
-      const cleanText = encodeURIComponent(textChunk.trim());
-      if (!cleanText) {
-        resolve();
-        return;
-      }
-
-      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${cleanText}`;
-      const audio = new Audio(audioUrl);
-      this.currentAudio = audio;
-
-      audio.onended = () => {
-        this.currentAudio = null;
-        resolve();
-      };
-
-      audio.onerror = (e) => {
-        console.warn('Cloud audio stream encountered network error, falling back to neural speech synth', e);
-        this.currentAudio = null;
-        reject(e);
-      };
-
-      // Play with gentle fade/volume
-      audio.play().catch(err => {
-        this.currentAudio = null;
-        reject(err);
-      });
-    });
-  }
-
-  // Primary recitation method
-  public async speak(options: SpeechOptions): Promise<void> {
-    this.cancel();
-    this.isCancelled = false;
-
-    const rate = options.rate || 0.9;
-    const cleanText = options.text.replace(/[*_#`]/g, '').trim();
-
-    // Strategy 1: Try natural cloud stream if text is suitable
-    const sentences = cleanText.match(/[^.!?।\n]+[.!?।\n]+|[^.!?।\n]+/g) || [cleanText];
-    
-    let cloudFailed = false;
-    try {
-      for (const sentence of sentences) {
-        if (this.isCancelled) break;
-        const trimmed = sentence.trim();
-        if (trimmed.length === 0) continue;
-
-        // Cloud endpoint works reliably under 180 chars per phrase
-        if (trimmed.length < 180) {
-          try {
-            await this.playCloudAudioChunk(trimmed, options.lang);
-            // Small contemplative breathing pause between verses/sentences
-            await new Promise(r => setTimeout(r, 260));
-          } catch (cloudErr) {
-            cloudFailed = true;
-            break;
-          }
-        } else {
-          // If sentence is unusually long, use neural synthesis for that part
-          cloudFailed = true;
-          break;
-        }
-      }
-    } catch (e) {
-      cloudFailed = true;
-    }
-
-    // Strategy 2: If cloud stream had network issue or text too long, use highest quality browser neural voice
-    if (cloudFailed && !this.isCancelled) {
-      await this.speakWithBrowserNeural({
-        ...options,
-        text: cleanText,
-        rate
-      });
-    }
-
-    if (options.onEnd) options.onEnd();
-  }
-
-  // Browser Neural Speech Synthesis
-  private speakWithBrowserNeural(options: SpeechOptions): Promise<void> {
+  // Speak a single phrase cleanly
+  private speakChunk(text: string, lang: 'hi' | 'en', rate: number): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.synth) {
+      if (!this.synth || this.isCancelled) {
         resolve();
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(options.text);
-      utterance.rate = options.rate || 0.88; // gentle, deliberate tempo for wisdom
-      utterance.pitch = options.pitch || 0.98; // slightly deeper, warmer resonant tone
-
-      const targetLang = options.lang === 'hi' ? 'hi-IN' : 'en-IN';
-      utterance.lang = targetLang;
-
-      const bestVoice = this.getBestBrowserVoice(options.lang);
-      if (bestVoice) {
-        utterance.voice = bestVoice;
+      // Resume speech synthesis if suspended by browser
+      if (this.synth.paused) {
+        this.synth.resume();
       }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = rate;
+      utterance.pitch = 1.0;
+      utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+
+      const voice = this.getBestVoice(lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+
+      let timeoutId: any = null;
+
+      utterance.onstart = () => {
+        // Chromium keepalive: periodically resume to prevent browser dropping long audio
+        timeoutId = setInterval(() => {
+          if (this.synth && this.synth.speaking && !this.synth.paused) {
+            this.synth.pause();
+            this.synth.resume();
+          }
+        }, 8000);
+      };
 
       utterance.onend = () => {
+        if (timeoutId) clearInterval(timeoutId);
         this.currentUtterance = null;
         resolve();
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        if (timeoutId) clearInterval(timeoutId);
+        console.warn('SpeechSynthesis error:', e);
         this.currentUtterance = null;
         resolve();
       };
@@ -200,19 +139,45 @@ class GitaSpeechEngine {
     });
   }
 
-  public pause() {
-    if (this.currentAudio) {
-      this.currentAudio.pause();
+  // Speak text with graceful phrase splitting
+  public async speak(options: SpeechOptions): Promise<void> {
+    this.cancel();
+    this.isCancelled = false;
+
+    if (!this.synth) {
+      console.warn('Speech synthesis not supported in this browser.');
+      return;
     }
+
+    // Ensure voices are initialized
+    if (this.voices.length === 0) {
+      this.loadVoices();
+    }
+
+    const cleanText = options.text.replace(/[*_#`॥]/g, '').trim();
+    if (!cleanText) return;
+
+    // Split into sentences for natural rhythm and to prevent browser truncation
+    const chunks = cleanText.split(/[\n।\.]+/).map(s => s.trim()).filter(s => s.length > 0);
+    const rate = options.rate || (options.lang === 'hi' ? 0.86 : 0.92);
+
+    for (const chunk of chunks) {
+      if (this.isCancelled) break;
+      await this.speakChunk(chunk, options.lang, rate);
+      // Small meditative breath between lines
+      await new Promise(r => setTimeout(r, 220));
+    }
+
+    if (options.onEnd) options.onEnd();
+  }
+
+  public pause() {
     if (this.synth && this.synth.speaking) {
       this.synth.pause();
     }
   }
 
   public resume() {
-    if (this.currentAudio && this.currentAudio.paused) {
-      this.currentAudio.play();
-    }
     if (this.synth && this.synth.paused) {
       this.synth.resume();
     }
@@ -220,11 +185,6 @@ class GitaSpeechEngine {
 
   public cancel() {
     this.isCancelled = true;
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.src = '';
-      this.currentAudio = null;
-    }
     if (this.synth) {
       this.synth.cancel();
       this.currentUtterance = null;
@@ -232,7 +192,7 @@ class GitaSpeechEngine {
   }
 
   public isSpeaking(): boolean {
-    return !!(this.currentAudio || (this.synth && this.synth.speaking));
+    return !!(this.synth && (this.synth.speaking || this.synth.pending));
   }
 }
 
