@@ -35,6 +35,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 }) => {
   const [name, setName] = useState(user.name);
   const [preferredLanguage, setPreferredLanguage] = useState(user.preferredLanguage);
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(user.voiceGender || 'male');
   const [readingSpeed, setReadingSpeed] = useState(user.readingSpeed);
   const [ambientSound, setAmbientSound] = useState(user.ambientSound);
 
@@ -46,6 +47,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       ...user,
       name,
       preferredLanguage,
+      voiceGender,
       readingSpeed,
       ambientSound
     });
@@ -178,6 +180,36 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 }`}
               >
                 हिंदी भावार्थ (Hindi)
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
+              Recitation Voice Gender
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setVoiceGender('male')}
+                className={`py-2 px-3 rounded-xl border text-xs font-semibold ${
+                  voiceGender === 'male'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                    : 'bg-slate-800/40 border-slate-700 text-slate-400'
+                }`}
+              >
+                🧔 Male Voice
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceGender('female')}
+                className={`py-2 px-3 rounded-xl border text-xs font-semibold ${
+                  voiceGender === 'female'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                    : 'bg-slate-800/40 border-slate-700 text-slate-400'
+                }`}
+              >
+                👩 Female Voice
               </button>
             </div>
           </div>

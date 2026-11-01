@@ -42,6 +42,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only'>(
     user.preferredLanguage === 'hindi' ? 'sanskrit_then_hindi' : 'sanskrit_then_english'
   );
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(user.voiceGender || 'male');
   
   // Audio state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -122,12 +123,14 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         await gitaSpeech.speak({
           text: currentShloka.sanskrit,
           lang: 'hi',
+          gender: voiceGender,
           rate: 0.84
         });
         // Step 2: English translation
         await gitaSpeech.speak({
           text: currentShloka.englishMeaning,
           lang: 'en',
+          gender: voiceGender,
           rate: 0.92
         });
       } else if (listenLanguage === 'sanskrit_then_hindi') {
@@ -135,24 +138,28 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         await gitaSpeech.speak({
           text: currentShloka.sanskrit,
           lang: 'hi',
+          gender: voiceGender,
           rate: 0.84
         });
         // Step 2: Hindi Bhavarth
         await gitaSpeech.speak({
           text: currentShloka.hindiMeaning,
           lang: 'hi',
+          gender: voiceGender,
           rate: 0.88
         });
       } else if (listenLanguage === 'english_only') {
         await gitaSpeech.speak({
           text: `${currentShloka.englishMeaning}. ${currentShloka.commentaryEnglish || ''}`,
           lang: 'en',
+          gender: voiceGender,
           rate: 0.92
         });
       } else if (listenLanguage === 'hindi_only') {
         await gitaSpeech.speak({
           text: `${currentShloka.hindiMeaning}। ${currentShloka.commentaryHindi || ''}`,
           lang: 'hi',
+          gender: voiceGender,
           rate: 0.88
         });
       }
@@ -368,6 +375,42 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
               <option value="english_only">English voice only</option>
               <option value="hindi_only">हिंदी केवल (Hindi only)</option>
             </select>
+
+            {/* Quick Male / Female Voice Switcher */}
+            <div className="inline-flex rounded-full bg-[#200808] border border-amber-500/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  gitaSpeech.cancel();
+                  setIsSpeaking(false);
+                  setVoiceGender('male');
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                  voiceGender === 'male'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-amber-300/70 hover:text-amber-200'
+                }`}
+                title="Male Voice (Madhur/Prabhat)"
+              >
+                🧔 Male
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  gitaSpeech.cancel();
+                  setIsSpeaking(false);
+                  setVoiceGender('female');
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                  voiceGender === 'female'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-amber-300/70 hover:text-amber-200'
+                }`}
+                title="Female Voice (Swara/Neerja)"
+              >
+                👩 Female
+              </button>
+            </div>
           </div>
 
           <div className="text-xs text-amber-300/80 font-medium">

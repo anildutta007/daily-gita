@@ -17,6 +17,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [preferredLanguage, setPreferredLanguage] = useState<'english' | 'hindi'>(
     existingProfile?.preferredLanguage || 'english'
   );
+  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(
+    existingProfile?.voiceGender || 'male'
+  );
   const [readingSpeed, setReadingSpeed] = useState<'slow' | 'medium' | 'fast'>(
     existingProfile?.readingSpeed || 'medium'
   );
@@ -32,6 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       id: existingProfile?.id || `seeker_${Date.now()}`,
       name: name.trim() || 'Devoted Seeker',
       preferredLanguage,
+      voiceGender,
       readingSpeed,
       ambientSound,
       voiceSpeed: existingProfile?.voiceSpeed ?? 0.95,
@@ -111,6 +115,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }`}
               >
                 हिंदी भावार्थ (Hindi)
+              </button>
+            </div>
+          </div>
+
+          {/* Voice Gender Choice */}
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-amber-400/80 font-medium mb-1.5">
+              <span className="flex items-center gap-1.5">
+                <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                Recitation Voice Gender
+              </span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setVoiceGender('male')}
+                className={`py-2 px-3 rounded-xl border text-sm font-medium transition-all ${
+                  voiceGender === 'male'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-sm shadow-amber-500/20'
+                    : 'bg-slate-800/50 border-slate-700/80 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                🧔 Male Voice
+              </button>
+              <button
+                type="button"
+                onClick={() => setVoiceGender('female')}
+                className={`py-2 px-3 rounded-xl border text-sm font-medium transition-all ${
+                  voiceGender === 'female'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-sm shadow-amber-500/20'
+                    : 'bg-slate-800/50 border-slate-700/80 text-slate-400 hover:border-slate-600'
+                }`}
+              >
+                👩 Female Voice
               </button>
             </div>
           </div>

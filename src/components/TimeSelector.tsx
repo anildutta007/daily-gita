@@ -8,11 +8,13 @@ interface TimeSelectorProps {
   user: UserProfile;
   onStartSession: (durationMinutes: number) => void;
   onOpenSettings: () => void;
+  onResetToBeginning?: () => void;
 }
 
 export const TimeSelector: React.FC<TimeSelectorProps> = ({
   user,
-  onStartSession
+  onStartSession,
+  onResetToBeginning
 }) => {
   const [customTime, setCustomTime] = useState<number>(10);
   const [selectedTime, setSelectedTime] = useState<number>(10);
@@ -50,6 +52,23 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
               You last paused at <span className="text-amber-400 font-medium">Chapter {currentShloka.chapter}, Verse {currentShloka.verse}</span>.
               Tell us your available time, and the app will tailor the exact verses and audio chanting you can absorb in that window.
             </p>
+
+            {/* Quick Start Again / Reset Option */}
+            {user.currentShlokaIndex > 0 && onResetToBeginning && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Start reading again from Chapter 1, Verse 1?")) {
+                      onResetToBeginning();
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#170505] border border-amber-500/40 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 hover:text-amber-100 transition-all shadow-sm"
+                >
+                  <span>🔄 Start again from Chapter 1, Verse 1</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4 bg-[#140505] border border-amber-500/30 rounded-2xl p-4 self-start md:self-auto min-w-[200px]">

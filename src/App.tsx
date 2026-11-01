@@ -201,22 +201,22 @@ export function App() {
         </div>
       </header>
 
-      {/* Hero Chariot Painting & Karmanye Vadhikaraste Verse (As in screenshot) */}
+      {/* Hero Chariot Painting & Karmanye Vadhikaraste Verse (Fitted within screen) */}
       <section className="relative overflow-hidden w-full bg-[#180505]">
-        {/* Krishna & Arjuna on Chariot Painting */}
-        <div className="relative w-full max-h-[380px] sm:max-h-[460px] overflow-hidden flex items-center justify-center">
-          <img
-            src={chariotBanner}
-            alt="Lord Krishna and Arjuna on the Chariot at Kurukshetra"
-            className="w-full object-cover object-center max-h-[460px] filter brightness-[0.92] contrast-[1.05]"
-          />
-          {/* Subtle top/bottom shadow blending */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#140505] via-transparent to-[#1a0808]/40 pointer-events-none" />
+        {/* Krishna & Arjuna on Chariot Painting - Fitted responsively without overflow */}
+        <div className="relative w-full max-w-5xl mx-auto px-4 pt-3 flex items-center justify-center">
+          <div className="w-full rounded-2xl overflow-hidden border border-amber-500/25 shadow-2xl shadow-black/80">
+            <img
+              src={chariotBanner}
+              alt="Lord Krishna and Arjuna on the Chariot at Kurukshetra"
+              className="w-full h-auto max-h-[42vh] object-contain object-center mx-auto filter brightness-[0.96] contrast-[1.04]"
+            />
+          </div>
         </div>
 
         {/* Karmanye Vadhikaraste Verse Below Painting */}
-        <div className="relative z-10 text-center py-5 px-4 bg-[#140505]">
-          <h2 className="font-serif text-xl sm:text-2xl text-amber-300 font-bold tracking-wide">
+        <div className="relative z-10 text-center py-4 px-4 bg-[#140505]">
+          <h2 className="font-serif text-lg sm:text-2xl text-amber-300 font-bold tracking-wide">
             कर्मण्येवाधिकारस्ते मा फलेषु कदाचन
           </h2>
           <p className="text-amber-200/80 font-serif italic text-xs sm:text-sm mt-1">
@@ -257,6 +257,7 @@ export function App() {
             user={user}
             onStartSession={handleStartSession}
             onOpenSettings={() => setIsProfileOpen(true)}
+            onResetToBeginning={() => handleSelectShloka(0)}
           />
         )}
       </main>

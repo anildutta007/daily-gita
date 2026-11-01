@@ -1,14 +1,10 @@
 // Robust, Instant-Response Multilingual Speech Engine for Bhagavad Gita
-// Utilizes browser-native SpeechSynthesis with:
-// 1. Zero external network/CORS dependency (works 100% reliably in every browser)
-// 2. Intelligent voice selection prioritizing natural human-like neural voices:
-//    - Hindi: Google हिन्दी, Microsoft Swara/Madhur/Hemant/Kalpana (Natural), Lekha, hi-IN
-//    - English: Microsoft Neerja/Prabhat/Aria/Guy (Natural), Google UK/Indian English, Samantha
-// 3. Proper chunking and anti-stalling keepalive for continuous recitation
+// Supports Male & Female voice selections with intelligent natural voice matching
 
 export interface SpeechOptions {
   text: string;
   lang: 'hi' | 'en';
+  gender?: 'male' | 'female';
   rate?: number; // 0.85 - 1.0
   pitch?: number;
   onEnd?: () => void;
@@ -44,67 +40,82 @@ class GitaSpeechEngine {
     return this.voices;
   }
 
-  // Select the highest quality neural / natural voice available for Hindi or English
-  public getBestVoice(lang: 'hi' | 'en'): SpeechSynthesisVoice | null {
+  // Select voice based on language and Male / Female preference
+  public getBestVoice(lang: 'hi' | 'en', gender: 'male' | 'female' = 'male'): SpeechSynthesisVoice | null {
     const voices = this.getVoices();
     if (!voices || voices.length === 0) return null;
 
     if (lang === 'hi') {
-      // Prioritize natural / neural Hindi voices
-      const hindiPreferences = [
-        'natural', 'online', 'swara', 'madhur', 'hemant', 'kalpana', 'google हिन्दी', 'hindi', 'lekha'
-      ];
-      for (const pref of hindiPreferences) {
-        const match = voices.find(v => 
-          (v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('in')) && 
-          v.name.toLowerCase().includes(pref)
-        );
-        if (match) return match;
+      if (gender === 'male') {
+        const maleKeywords = ['madhur', 'hemant', 'male', 'prabhat', 'google हिन्दी'];
+        for (const kw of maleKeywords) {
+          const match = voices.find(v => 
+            (v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('in')) &&
+            v.name.toLowerCase().includes(kw)
+          );
+          if (match) return match;
+        }
+      } else {
+        const femaleKeywords = ['swara', 'kalpana', 'female', 'lekha', 'neerja'];
+        for (const kw of femaleKeywords) {
+          const match = voices.find(v => 
+            (v.lang.toLowerCase().includes('hi') || v.lang.toLowerCase().includes('in')) &&
+            v.name.toLowerCase().includes(kw)
+          );
+          if (match) return match;
+        }
       }
-      // Any Hindi voice
+
+      // General Hindi fallback
       const anyHindi = voices.find(v => v.lang.toLowerCase().includes('hi'));
       if (anyHindi) return anyHindi;
 
-      // Fallback: Indian English voice that pronounces Sanskrit well
-      const indianVoice = voices.find(v => v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india'));
-      if (indianVoice) return indianVoice;
-
-      return null;
+      // Indian English fallback
+      return voices.find(v => v.lang.toLowerCase() === 'en-in') || null;
     } else {
-      // English preferences: Natural / Neural Indian English, British, or US English
-      const engPreferences = [
-        'natural', 'neerja', 'prabhat', 'google uk english', 'george', 'aria', 'guy', 'en-in', 'samantha'
-      ];
-      for (const pref of engPreferences) {
-        const match = voices.find(v => 
-          v.lang.toLowerCase().startsWith('en') && 
-          v.name.toLowerCase().includes(pref)
-        );
-        if (match) return match;
+      // English
+      if (gender === 'male') {
+        const maleKeywords = ['prabhat', 'guy', 'george', 'male', 'rishi', 'david', 'daniel'];
+        for (const kw of maleKeywords) {
+          const match = voices.find(v => 
+            v.lang.toLowerCase().startsWith('en') && 
+            v.name.toLowerCase().includes(kw)
+          );
+          if (match) return match;
+        }
+      } else {
+        const femaleKeywords = ['neerja', 'aria', 'samantha', 'female', 'zira', 'katherine', 'victoria'];
+        for (const kw of femaleKeywords) {
+          const match = voices.find(v => 
+            v.lang.toLowerCase().startsWith('en') && 
+            v.name.toLowerCase().includes(kw)
+          );
+          if (match) return match;
+        }
       }
+
       return voices.find(v => v.lang.toLowerCase().startsWith('en')) || null;
     }
   }
 
-  // Speak a single phrase cleanly
-  private speakChunk(text: string, lang: 'hi' | 'en', rate: number): Promise<void> {
+  private speakChunk(text: string, lang: 'hi' | 'en', gender: 'male' | 'female', rate: number): Promise<void> {
     return new Promise((resolve) => {
       if (!this.synth || this.isCancelled) {
         resolve();
         return;
       }
 
-      // Resume speech synthesis if suspended by browser
       if (this.synth.paused) {
         this.synth.resume();
       }
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
-      utterance.pitch = 1.0;
+      // Adjust pitch slightly: slightly deeper for male (0.95), slightly brighter for female (1.05)
+      utterance.pitch = gender === 'male' ? 0.95 : 1.05;
       utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
 
-      const voice = this.getBestVoice(lang);
+      const voice = this.getBestVoice(lang, gender);
       if (voice) {
         utterance.voice = voice;
       }
@@ -112,7 +123,6 @@ class GitaSpeechEngine {
       let timeoutId: any = null;
 
       utterance.onstart = () => {
-        // Chromium keepalive: periodically resume to prevent browser dropping long audio
         timeoutId = setInterval(() => {
           if (this.synth && this.synth.speaking && !this.synth.paused) {
             this.synth.pause();
@@ -139,7 +149,6 @@ class GitaSpeechEngine {
     });
   }
 
-  // Speak text with graceful phrase splitting
   public async speak(options: SpeechOptions): Promise<void> {
     this.cancel();
     this.isCancelled = false;
@@ -149,7 +158,6 @@ class GitaSpeechEngine {
       return;
     }
 
-    // Ensure voices are initialized
     if (this.voices.length === 0) {
       this.loadVoices();
     }
@@ -157,14 +165,13 @@ class GitaSpeechEngine {
     const cleanText = options.text.replace(/[*_#`॥]/g, '').trim();
     if (!cleanText) return;
 
-    // Split into sentences for natural rhythm and to prevent browser truncation
     const chunks = cleanText.split(/[\n।\.]+/).map(s => s.trim()).filter(s => s.length > 0);
     const rate = options.rate || (options.lang === 'hi' ? 0.86 : 0.92);
+    const gender = options.gender || 'male';
 
     for (const chunk of chunks) {
       if (this.isCancelled) break;
-      await this.speakChunk(chunk, options.lang, rate);
-      // Small meditative breath between lines
+      await this.speakChunk(chunk, options.lang, gender, rate);
       await new Promise(r => setTimeout(r, 220));
     }
 
