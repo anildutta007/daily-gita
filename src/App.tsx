@@ -11,7 +11,7 @@ import { TimeSelector } from './components/TimeSelector';
 import { ReadingSession } from './components/ReadingSession';
 import { ProfileModal } from './components/ProfileModal';
 import { ChapterBrowserModal } from './components/ChapterBrowserModal';
-import { BookOpen, LogOut, Users } from 'lucide-react';
+import { BookOpen, LogOut, Users, MessageSquareQuote } from 'lucide-react';
 import { recordAndGetVisitorCount } from './utils/visitorCounter';
 import chariotBanner from './assets/krishna-arjuna-banner.png';
 
@@ -164,6 +164,17 @@ export function App() {
 
         {/* Right Nav Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Feedback Link for Anil Dutta */}
+          <a
+            href="mailto:Anildutta007@gmail.com?subject=Daily%20Gita%20Companion%20-%20Seeker%20Feedback"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#2a0e0e] border border-amber-600/40 text-xs font-semibold text-amber-200 hover:text-amber-100 hover:border-amber-400 hover:bg-[#3d1414] transition-all shadow-sm"
+            title="Send Feedback to Anil Dutta (Anildutta007@gmail.com)"
+          >
+            <MessageSquareQuote className="w-3.5 h-3.5 text-amber-400" />
+            <span>Feedback</span>
+            <span className="hidden lg:inline text-[10px] text-amber-300/60">• Anil Dutta</span>
+          </a>
+
           {/* Visitor Counter Badge */}
           {visitorCount !== null && (
             <div
@@ -288,6 +299,15 @@ export function App() {
         </p>
         <p className="text-[11px] text-amber-300/40">
           Daily Gita Companion • Sacred Shlokas at your pace
+        </p>
+        <p className="text-[11px] text-amber-300/70">
+          Curated with devotion by <strong className="text-amber-200">Anil Dutta</strong> •{' '}
+          <a
+            href="mailto:Anildutta007@gmail.com?subject=Daily%20Gita%20Companion%20-%20Seeker%20Feedback"
+            className="text-amber-400 hover:text-amber-300 underline font-medium"
+          >
+            Send Feedback (Anildutta007@gmail.com)
+          </a>
         </p>
         {visitorCount !== null && (
           <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-amber-400/80">
