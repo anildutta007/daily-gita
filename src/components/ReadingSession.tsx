@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shloka, UserProfile } from '../types';
 import { CHAPTER_METADATA } from '../data/chapterMeta';
 import { gitaSpeech } from '../utils/speech';
+import { gitaAudioPlayer } from '../utils/audioPlayer';
 import { ambientSound } from '../utils/ambientSound';
 import {
   Pause,
@@ -120,76 +121,80 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     }
   };
 
-  // Recite a specific shloka index
+  // Recite a specific shloka index (uses high-fidelity neural MP3 with graceful WebSpeech fallback)
   const playShloka = async (idxToPlay: number, autoAdvance: boolean) => {
     const targetShloka = shlokas[idxToPlay];
     if (!targetShloka) return;
 
     setIsSpeaking(true);
     try {
-      if (listenLanguage === 'sanskrit_then_english') {
-        // Step 1: Sanskrit verse
-        await gitaSpeech.speak({
-          text: targetShloka.sanskrit,
-          lang: 'hi',
-          rate: 0.84
-        });
-        // Step 2: English meaning
-        await gitaSpeech.speak({
-          text: targetShloka.englishMeaning,
-          lang: 'en',
-          rate: 0.92
-        });
-        // Step 3: Inner Reflection (only if meaningful commentary exists)
-        if (isMeaningfulCommentary(targetShloka.commentaryEnglish)) {
+      const fallbackRecite = async () => {
+        if (listenLanguage === 'sanskrit_then_english') {
           await gitaSpeech.speak({
-            text: `Inner Reflection: ${targetShloka.commentaryEnglish}`,
-            lang: 'en',
-            rate: 0.90
-          });
-        }
-      } else if (listenLanguage === 'sanskrit_then_hindi') {
-        // Step 1: Sanskrit verse
-        await gitaSpeech.speak({
-          text: targetShloka.sanskrit,
-          lang: 'hi',
-          rate: 0.84
-        });
-        // Step 2: Hindi Bhavarth
-        await gitaSpeech.speak({
-          text: targetShloka.hindiMeaning,
-          lang: 'hi',
-          rate: 0.88
-        });
-        // Step 3: Inner Reflection (Chintan) (only if meaningful commentary exists)
-        if (isMeaningfulCommentary(targetShloka.commentaryHindi)) {
-          await gitaSpeech.speak({
-            text: `चिन्तन: ${targetShloka.commentaryHindi}`,
+            text: targetShloka.sanskrit,
             lang: 'hi',
-            rate: 0.86
+            rate: 0.84
+          });
+          await gitaSpeech.speak({
+            text: targetShloka.englishMeaning,
+            lang: 'en',
+            rate: 0.92
+          });
+          if (isMeaningfulCommentary(targetShloka.commentaryEnglish)) {
+            await gitaSpeech.speak({
+              text: `Inner Reflection: ${targetShloka.commentaryEnglish}`,
+              lang: 'en',
+              rate: 0.90
+            });
+          }
+        } else if (listenLanguage === 'sanskrit_then_hindi') {
+          await gitaSpeech.speak({
+            text: targetShloka.sanskrit,
+            lang: 'hi',
+            rate: 0.84
+          });
+          await gitaSpeech.speak({
+            text: targetShloka.hindiMeaning,
+            lang: 'hi',
+            rate: 0.88
+          });
+          if (isMeaningfulCommentary(targetShloka.commentaryHindi)) {
+            await gitaSpeech.speak({
+              text: `चिन्तन: ${targetShloka.commentaryHindi}`,
+              lang: 'hi',
+              rate: 0.86
+            });
+          }
+        } else if (listenLanguage === 'english_only') {
+          const hasComm = isMeaningfulCommentary(targetShloka.commentaryEnglish);
+          const spokenText = hasComm
+            ? `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish}`
+            : targetShloka.englishMeaning;
+          await gitaSpeech.speak({
+            text: spokenText,
+            lang: 'en',
+            rate: 0.92
+          });
+        } else if (listenLanguage === 'hindi_only') {
+          const hasComm = isMeaningfulCommentary(targetShloka.commentaryHindi);
+          const spokenText = hasComm
+            ? `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi}`
+            : targetShloka.hindiMeaning;
+          await gitaSpeech.speak({
+            text: spokenText,
+            lang: 'hi',
+            rate: 0.88
           });
         }
-      } else if (listenLanguage === 'english_only') {
-        const hasComm = isMeaningfulCommentary(targetShloka.commentaryEnglish);
-        const spokenText = hasComm
-          ? `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish}`
-          : targetShloka.englishMeaning;
-        await gitaSpeech.speak({
-          text: spokenText,
-          lang: 'en',
-          rate: 0.92
-        });
-      } else if (listenLanguage === 'hindi_only') {
-        const hasComm = isMeaningfulCommentary(targetShloka.commentaryHindi);
-        const spokenText = hasComm
-          ? `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi}`
-          : targetShloka.hindiMeaning;
-        await gitaSpeech.speak({
-          text: spokenText,
-          lang: 'hi',
-          rate: 0.88
-        });
-      }
+      };
+
+      // Play through neural audio player (streams high-fidelity MP3 if present, or calls fallback)
+      await gitaAudioPlayer.playVerse({
+        chapter: targetShloka.chapter,
+        verse: targetShloka.verse,
+        language: listenLanguage,
+        fallbackRecitation: fallbackRecite
+      });
 
       // Mark current verse as completed
       if (!completedIds.includes(targetShloka.id)) {
@@ -207,7 +212,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         }
       }
     } catch (err) {
-      console.warn('Speech recitation error:', err);
+      console.warn('Recitation error:', err);
     } finally {
       if (!autoAdvance || idxToPlay >= shlokas.length - 1) {
         setIsSpeaking(false);
@@ -221,7 +226,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
       playShloka(currentIdx, true);
     }
     return () => {
-      gitaSpeech.cancel();
+      gitaAudioPlayer.stop();
     };
   }, [currentIdx, isContinuousMode, listenLanguage]);
 
@@ -237,7 +242,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
 
   const handleToggleListen = async () => {
     if (isSpeaking) {
-      gitaSpeech.cancel();
+      gitaAudioPlayer.stop();
       setIsSpeaking(false);
       setIsContinuousMode(false);
       return;
@@ -247,7 +252,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   };
 
   const handleNext = () => {
-    gitaSpeech.cancel();
+    gitaAudioPlayer.stop();
     setIsSpeaking(false);
     if (!completedIds.includes(currentShloka.id)) {
       setCompletedIds([...completedIds, currentShloka.id]);
@@ -260,7 +265,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   };
 
   const handlePrev = () => {
-    gitaSpeech.cancel();
+    gitaAudioPlayer.stop();
     setIsSpeaking(false);
     if (currentIdx > 0) {
       triggerFlip('prev', currentIdx - 1);
