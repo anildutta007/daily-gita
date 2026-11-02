@@ -2,15 +2,11 @@ import { UserProfile } from '../types';
 import { GITA_SHLOKAS } from '../data/shlokas';
 
 const STORAGE_KEY = 'daily_gita_user_profile';
-const COOKIE_KEY = 'daily_gita_profile_id';
 
 export const DEFAULT_PROFILE: UserProfile = {
   id: 'devoted_seeker',
   name: 'Seeker',
   preferredLanguage: 'english',
-  voiceEngine: 'native',
-  voiceGender: 'male',
-  elevenLabsVoiceId: 'pNInz6obpgDQGcFmaJgB',
   readingSpeed: 'medium', // 2 min per shloka
   ambientSound: 'flute',
   voiceSpeed: 0.95,
@@ -23,7 +19,6 @@ export const DEFAULT_PROFILE: UserProfile = {
   history: []
 };
 
-// Helper to set cross-session cookie for iOS Safari / Mobile Chrome
 function setCookie(name: string, val: string, days: number = 365) {
   try {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -40,7 +35,6 @@ function getCookie(name: string): string | null {
   }
 }
 
-// Multi-tier storage retrieval: localStorage -> cookie fallback -> auto-initialize
 export const getStoredProfile = (): UserProfile => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -54,7 +48,6 @@ export const getStoredProfile = (): UserProfile => {
     console.warn('localStorage reading error on mobile:', err);
   }
 
-  // Check cookie backup
   try {
     const cookieData = getCookie(STORAGE_KEY);
     if (cookieData) {
@@ -66,7 +59,6 @@ export const getStoredProfile = (): UserProfile => {
     }
   } catch (err) {}
 
-  // Auto-initialize profile immediately so mobile users never face a recurring popup wall
   const autoCreated: UserProfile = {
     ...DEFAULT_PROFILE,
     id: `seeker_${Date.now()}`
@@ -79,7 +71,6 @@ export const saveStoredProfile = (profile: UserProfile): void => {
   try {
     const serialized = JSON.stringify(profile);
     localStorage.setItem(STORAGE_KEY, serialized);
-    // Write to cookie as mobile storage backup (prevents iOS WebKit 7-day storage purge)
     setCookie(STORAGE_KEY, serialized, 365);
   } catch (err) {
     console.error('Failed saving user profile to storage', err);
@@ -95,7 +86,6 @@ export const removeStoredProfile = (): void => {
   }
 };
 
-// Calculate how many shlokas fit into time limit
 export const calculateShlokasForTime = (
   timeMinutes: number,
   readingSpeed: 'slow' | 'medium' | 'fast',

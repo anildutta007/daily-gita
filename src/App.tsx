@@ -11,8 +11,7 @@ import { TimeSelector } from './components/TimeSelector';
 import { ReadingSession } from './components/ReadingSession';
 import { ProfileModal } from './components/ProfileModal';
 import { ChapterBrowserModal } from './components/ChapterBrowserModal';
-import { VoiceSelectorModal } from './components/VoiceSelectorModal';
-import { BookOpen, LogOut, Sparkles } from 'lucide-react';
+import { BookOpen, LogOut } from 'lucide-react';
 import chariotBanner from './assets/krishna-arjuna-banner.png';
 
 export function App() {
@@ -20,7 +19,6 @@ export function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   // Session state
   const [activeSession, setActiveSession] = useState<{
@@ -172,16 +170,6 @@ export function App() {
                 <span className="hidden sm:inline">18 Chapters</span>
               </button>
 
-              {/* ElevenLabs Voices Selector button */}
-              <button
-                onClick={() => setIsVoiceModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-600/30 to-amber-500/20 border border-amber-500/40 text-xs font-semibold text-amber-300 hover:text-amber-100 hover:border-amber-400 transition-all"
-                title="Choose Studio Voices (ElevenLabs / Audio Samples)"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden md:inline">Voices</span>
-              </button>
-
               {/* Profile Pill */}
               <button
                 onClick={() => setIsProfileOpen(true)}
@@ -262,7 +250,6 @@ export function App() {
             totalSessionMinutes={activeSession.durationMinutes}
             user={user}
             initialMode={activeSession.sessionMode}
-            onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
             onFinishSession={handleFinishSession}
             onExitEarly={handleExitEarly}
           />
@@ -309,21 +296,6 @@ export function App() {
             onSelectShloka={handleSelectShloka}
             completedIds={user.completedShlokaIds}
             bookmarkedIds={user.bookmarkedIds}
-          />
-
-          <VoiceSelectorModal
-            isOpen={isVoiceModalOpen}
-            onClose={() => setIsVoiceModalOpen(false)}
-            currentApiKey={user.elevenLabsApiKey}
-            currentVoiceId={user.elevenLabsVoiceId}
-            onSavePreferences={(key, voiceId, engine) => {
-              handleUpdateUser({
-                ...user,
-                elevenLabsApiKey: key,
-                elevenLabsVoiceId: voiceId,
-                voiceEngine: engine
-              });
-            }}
           />
         </>
       )}

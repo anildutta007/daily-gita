@@ -25,7 +25,6 @@ interface ReadingSessionProps {
   totalSessionMinutes: number;
   user: UserProfile;
   initialMode?: 'listen' | 'read';
-  onOpenVoiceModal?: () => void;
   onFinishSession: (updatedShlokaIndex: number, completedIds: number[], minutesSpent: number) => void;
   onExitEarly: (updatedShlokaIndex: number, completedIds: number[], minutesSpent: number) => void;
 }
@@ -36,7 +35,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   totalSessionMinutes,
   user,
   initialMode = 'listen',
-  onOpenVoiceModal,
   onFinishSession,
   onExitEarly
 }) => {
@@ -46,7 +44,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only'>(
     user.preferredLanguage === 'hindi' ? 'sanskrit_then_hindi' : 'sanskrit_then_english'
   );
-  const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(user.voiceGender || 'male');
   
   // Animation state for 3D page flip
   const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
@@ -120,9 +117,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     const targetShloka = shlokas[idxToPlay];
     if (!targetShloka) return;
 
-    const elevenApiKey = user.voiceEngine === 'elevenlabs' ? user.elevenLabsApiKey : undefined;
-    const elevenVoiceId = user.voiceEngine === 'elevenlabs' ? user.elevenLabsVoiceId : undefined;
-
     setIsSpeaking(true);
     try {
       if (listenLanguage === 'sanskrit_then_english') {
@@ -130,18 +124,12 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         await gitaSpeech.speak({
           text: targetShloka.sanskrit,
           lang: 'hi',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.84
         });
         // Step 2: English meaning
         await gitaSpeech.speak({
           text: targetShloka.englishMeaning,
           lang: 'en',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.92
         });
         // Step 3: Inner Reflection
@@ -149,9 +137,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           await gitaSpeech.speak({
             text: `Inner Reflection: ${targetShloka.commentaryEnglish}`,
             lang: 'en',
-            gender: voiceGender,
-            elevenLabsApiKey: elevenApiKey,
-            elevenLabsVoiceId: elevenVoiceId,
             rate: 0.90
           });
         }
@@ -160,18 +145,12 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         await gitaSpeech.speak({
           text: targetShloka.sanskrit,
           lang: 'hi',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.84
         });
         // Step 2: Hindi Bhavarth
         await gitaSpeech.speak({
           text: targetShloka.hindiMeaning,
           lang: 'hi',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.88
         });
         // Step 3: Inner Reflection (Chintan)
@@ -179,9 +158,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           await gitaSpeech.speak({
             text: `चिन्तन: ${targetShloka.commentaryHindi}`,
             lang: 'hi',
-            gender: voiceGender,
-            elevenLabsApiKey: elevenApiKey,
-            elevenLabsVoiceId: elevenVoiceId,
             rate: 0.86
           });
         }
@@ -189,18 +165,12 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         await gitaSpeech.speak({
           text: `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish || ''}`,
           lang: 'en',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.92
         });
       } else if (listenLanguage === 'hindi_only') {
         await gitaSpeech.speak({
           text: `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi || ''}`,
           lang: 'hi',
-          gender: voiceGender,
-          elevenLabsApiKey: elevenApiKey,
-          elevenLabsVoiceId: elevenVoiceId,
           rate: 0.88
         });
       }
@@ -237,7 +207,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     return () => {
       gitaSpeech.cancel();
     };
-  }, [currentIdx, isContinuousMode, listenLanguage, voiceGender]);
+  }, [currentIdx, isContinuousMode, listenLanguage]);
 
   const triggerFlip = (direction: 'next' | 'prev', newIndex: number) => {
     setFlipDirection(direction);
@@ -501,55 +471,9 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                     <option value="hindi_only">हिंदी केवल (Hindi only)</option>
                   </select>
 
-                  <div className="inline-flex rounded-full bg-[#ebdccb] border border-amber-700/30 p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        gitaSpeech.cancel();
-                        setIsSpeaking(false);
-                        setVoiceGender('male');
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                        voiceGender === 'male'
-                          ? 'bg-amber-600 text-white shadow-sm'
-                          : 'text-[#5a311b] hover:text-black'
-                      }`}
-                    >
-                      🧔 Male
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        gitaSpeech.cancel();
-                        setIsSpeaking(false);
-                        setVoiceGender('female');
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                        voiceGender === 'female'
-                          ? 'bg-amber-600 text-white shadow-sm'
-                          : 'text-[#5a311b] hover:text-black'
-                      }`}
-                    >
-                      👩 Female
-                    </button>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ebdccb] border border-amber-700/30 text-xs font-semibold text-[#5a311b]">
+                    <span>👩 Natural Female Voice</span>
                   </div>
-
-                  {/* ElevenLabs Custom Studio Voice Trigger */}
-                  {onOpenVoiceModal && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        gitaSpeech.cancel();
-                        setIsSpeaking(false);
-                        onOpenVoiceModal();
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold shadow-sm transition-all"
-                      title="Choose ElevenLabs Voices & Audio Samples"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{user.voiceEngine === 'elevenlabs' ? 'ElevenLabs: ON' : 'ElevenLabs Voices'}</span>
-                    </button>
-                  )}
                 </div>
 
                 <div className="text-[11px] text-[#693d24] font-medium">

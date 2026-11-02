@@ -22,23 +22,10 @@ export interface ChapterMeta {
   summary: string;
 }
 
-export interface ElevenLabsVoice {
-  id: string;
-  name: string;
-  gender: 'male' | 'female';
-  category: string;
-  previewUrl?: string;
-  description: string;
-}
-
 export interface UserProfile {
   id: string;
   name: string;
   preferredLanguage: 'english' | 'hindi';
-  voiceEngine: 'elevenlabs' | 'native';
-  elevenLabsApiKey?: string;
-  elevenLabsVoiceId?: string; // Chosen voice ID
-  voiceGender: 'male' | 'female'; // Male or Female fallback
   readingSpeed: 'slow' | 'medium' | 'fast'; // slow: 3 min/shloka, medium: 2 min/shloka, fast: 1 min/shloka
   ambientSound: 'flute' | 'tanpura' | 'om' | 'none';
   voiceSpeed: number; // 0.8 to 1.2
