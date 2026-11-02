@@ -14,7 +14,6 @@ import {
   Clock,
   Sparkles,
   BookOpen,
-  Globe,
   LogOut,
   List
 } from 'lucide-react';
@@ -47,6 +46,9 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   );
   const [voiceGender, setVoiceGender] = useState<'male' | 'female'>(user.voiceGender || 'male');
   
+  // Animation state for 3D page flip
+  const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
+
   // Audio state
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ambientPlaying, setAmbientPlaying] = useState(user.ambientSound !== 'none');
@@ -111,7 +113,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     }
   };
 
-  // Listen mode TTS logic
   // Recite a specific shloka index
   const playShloka = async (idxToPlay: number, autoAdvance: boolean) => {
     const targetShloka = shlokas[idxToPlay];
@@ -188,12 +189,11 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         setCompletedIds(prev => Array.from(new Set([...prev, targetShloka.id])));
       }
 
-      // Automatic advance in continuous verse mode
+      // Automatic advance with 3D desk calendar page flip
       if (autoAdvance) {
         if (idxToPlay < shlokas.length - 1) {
-          // Meditative pause between verses
-          await new Promise(r => setTimeout(r, 900));
-          setCurrentIdx(idxToPlay + 1);
+          await new Promise(r => setTimeout(r, 700));
+          triggerFlip('next', idxToPlay + 1);
         } else {
           setIsSpeaking(false);
           handleSessionCompletion();
@@ -218,15 +218,24 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     };
   }, [currentIdx, isContinuousMode, listenLanguage, voiceGender]);
 
+  const triggerFlip = (direction: 'next' | 'prev', newIndex: number) => {
+    setFlipDirection(direction);
+    setTimeout(() => {
+      setCurrentIdx(newIndex);
+      setTimeout(() => {
+        setFlipDirection(null);
+      }, 50);
+    }, 280);
+  };
+
   const handleToggleListen = async () => {
     if (isSpeaking) {
       gitaSpeech.cancel();
       setIsSpeaking(false);
-      setIsContinuousMode(false); // Pausing turns off continuous auto-advance
+      setIsContinuousMode(false);
       return;
     }
 
-    // When clicking play, toggle continuous mode if user desires continuous listening
     setIsContinuousMode(true);
   };
 
@@ -237,7 +246,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
       setCompletedIds([...completedIds, currentShloka.id]);
     }
     if (currentIdx < shlokas.length - 1) {
-      setCurrentIdx(currentIdx + 1);
+      triggerFlip('next', currentIdx + 1);
     } else {
       handleSessionCompletion();
     }
@@ -247,7 +256,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     gitaSpeech.cancel();
     setIsSpeaking(false);
     if (currentIdx > 0) {
-      setCurrentIdx(currentIdx - 1);
+      triggerFlip('prev', currentIdx - 1);
     }
   };
 
@@ -267,7 +276,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
       spread: 70,
       origin: { y: 0.6 }
     });
-    const finalNextIndex = Math.min(initialIndex + currentIdx + 1, 32);
+    const finalNextIndex = Math.min(initialIndex + currentIdx + 1, 700);
     const minutesSpent = Math.max(1, Math.round((totalSessionMinutes * 60 - secondsRemaining) / 60));
     onFinishSession(finalNextIndex, completedIds, minutesSpent);
   };
@@ -336,262 +345,293 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         </div>
       </div>
 
-      {/* Main Temple Card Container */}
-      <div className="relative rounded-3xl bg-gradient-to-b from-[#2a0c0c] to-[#1c0808] border border-amber-500/40 p-6 sm:p-10 shadow-2xl shadow-black/80">
-        
-        {/* Chapter Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-amber-400 font-bold mb-1">
-              CHAPTER {currentShloka.chapter} • {chapterMeta?.nameSanskrit}
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-amber-100 tracking-tight">
-              {chapterMeta?.nameEnglish}
-            </h2>
-            <div className="text-sm text-amber-300/80 font-hindi mt-0.5">
-              {chapterMeta?.nameHindi}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleToggleBookmark(currentShloka.id)}
-              className={`p-2.5 rounded-full border transition-all ${
-                bookmarkedIds.includes(currentShloka.id)
-                  ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
-                  : 'bg-[#1b0808] border-amber-700/50 text-amber-300/60 hover:text-amber-200'
-              }`}
-              title="Bookmark this shloka"
-            >
-              <Bookmark className={`w-4 h-4 ${bookmarkedIds.includes(currentShloka.id) ? 'fill-current' : ''}`} />
-            </button>
-            <span className="px-3 py-1 rounded-full bg-[#f59e0b] text-[#1a0808] text-xs font-bold shadow-md">
-              Verse {currentShloka.verse}
-            </span>
-          </div>
-        </div>
-
-        {/* Golden Lotus Divider */}
-        <div className="my-6 flex items-center justify-center gap-3">
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent flex-1" />
-          <span className="text-amber-400 text-sm select-none">🪷</span>
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent flex-1" />
-        </div>
-
-        {/* Parchment-coloured Sanskrit Shloka Box with Rotating Faint Om Behind */}
-        <div className="relative overflow-hidden rounded-2xl bg-[#faf3e0] text-[#2c1810] p-8 sm:p-10 shadow-xl border border-amber-300/80 text-center my-6">
-          {/* Rotating Faint Om In Background */}
-          <div className="absolute right-6 top-1/2 -translate-y-1/2 select-none pointer-events-none opacity-[0.09] text-amber-900 text-[180px] sm:text-[230px] font-serif leading-none animate-spin-slow">
-            ॐ
-          </div>
-
-          <p className="relative z-10 font-serif text-2xl sm:text-3xl md:text-4xl leading-relaxed sm:leading-loose font-bold tracking-wide text-[#3a1d0f] whitespace-pre-line select-text">
-            {currentShloka.sanskrit}
-          </p>
-        </div>
-
-        {/* Transliteration */}
-        <p className="text-center font-serif italic text-sm sm:text-base text-amber-200/80 max-w-2xl mx-auto leading-relaxed whitespace-pre-line my-4">
-          {currentShloka.transliteration}
-        </p>
-
-        {/* Glowing Listen Button & Language Selection */}
-        <div className="my-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#1d0707] border border-amber-500/30">
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-            {/* Glowing Listen Button as in screenshot */}
-            <button
-              onClick={handleToggleListen}
-              className={`flex items-center justify-center gap-2.5 px-6 py-3 rounded-full font-bold text-sm tracking-wide transition-all shadow-lg ${
-                isSpeaking
-                  ? 'bg-amber-400 text-slate-950 shadow-amber-400/50 ring-4 ring-amber-400/40 animate-pulse'
-                  : 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-amber-500/40 hover:shadow-amber-400/60 hover:scale-105 active:scale-95'
-              }`}
-            >
-              {isSpeaking ? (
-                <>
-                  <Pause className="w-4 h-4 fill-current" />
-                  <span>Pause {isContinuousMode ? 'Continuous Audio' : 'Recitation'}</span>
-                </>
-              ) : (
-                <>
-                  <Volume2 className="w-4 h-4 fill-current" />
-                  <span>{isContinuousMode ? 'Resume Continuous Audio' : 'Play Continuous Verses'}</span>
-                </>
-              )}
-            </button>
-
-            {/* Continuous Auto-Advance Indicator */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#140505] border border-amber-500/40 text-[11px] text-amber-300">
-              <span className={`w-2 h-2 rounded-full ${isContinuousMode && isSpeaking ? 'bg-emerald-400 animate-ping' : 'bg-amber-500'}`} />
-              <span>{isContinuousMode ? 'Hands-Free Auto Advance ON' : 'Self-Paced'}</span>
-            </div>
-
-            {/* Listen Language Selector */}
-            <select
-              value={listenLanguage}
-              onChange={(e) => {
-                gitaSpeech.cancel();
-                setIsSpeaking(false);
-                setListenLanguage(e.target.value as any);
-              }}
-              className="bg-[#2a0c0c] border border-amber-500/40 rounded-full px-3 py-2 text-xs text-amber-200 focus:outline-none focus:border-amber-400"
-            >
-              <option value="sanskrit_then_hindi">Sanskrit chant + हिंदी भावार्थ</option>
-              <option value="sanskrit_then_english">Sanskrit chant + English meaning</option>
-              <option value="english_only">English voice only</option>
-              <option value="hindi_only">हिंदी केवल (Hindi only)</option>
-            </select>
-
-            {/* Quick Male / Female Voice Switcher */}
-            <div className="inline-flex rounded-full bg-[#200808] border border-amber-500/40 p-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  gitaSpeech.cancel();
-                  setIsSpeaking(false);
-                  setVoiceGender('male');
-                }}
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                  voiceGender === 'male'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-amber-300/70 hover:text-amber-200'
-                }`}
-                title="Male Voice (Madhur/Prabhat)"
-              >
-                🧔 Male
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  gitaSpeech.cancel();
-                  setIsSpeaking(false);
-                  setVoiceGender('female');
-                }}
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                  voiceGender === 'female'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
-                    : 'text-amber-300/70 hover:text-amber-200'
-                }`}
-                title="Female Voice (Swara/Neerja)"
-              >
-                👩 Female
-              </button>
-            </div>
-          </div>
-
-          <div className="text-xs text-amber-300/80 font-medium">
-            Theme: <strong className="text-amber-400">{currentShloka.theme || 'Spiritual Awakening'}</strong>
-          </div>
-        </div>
-
-        {/* Bilingual / English / Hindi Pill Buttons (Redesigned as requested) */}
-        <div className="my-6">
-          <div className="flex items-center justify-center p-1 rounded-full bg-[#170505] border border-amber-500/30 max-w-md mx-auto">
-            <button
-              onClick={() => setActiveTab('bilingual')}
-              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
-                activeTab === 'bilingual'
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
-                  : 'text-amber-200/70 hover:text-amber-100'
-              }`}
-            >
-              Bilingual
-            </button>
-            <button
-              onClick={() => setActiveTab('english')}
-              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all ${
-                activeTab === 'english'
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
-                  : 'text-amber-200/70 hover:text-amber-100'
-              }`}
-            >
-              English
-            </button>
-            <button
-              onClick={() => setActiveTab('hindi')}
-              className={`flex-1 py-2 px-4 rounded-full text-xs sm:text-sm font-semibold font-hindi transition-all ${
-                activeTab === 'hindi'
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/30'
-                  : 'text-amber-200/70 hover:text-amber-100'
-              }`}
-            >
-              हिंदी
-            </button>
-          </div>
-        </div>
-
-        {/* Meaning Content Box with Gold Border Accent */}
-        <div className="space-y-4 pt-2">
-          {(activeTab === 'bilingual' || activeTab === 'english') && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#1d0707] border-l-4 border-amber-500 border border-amber-500/20 shadow-md">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2">
-                ENGLISH TRANSLATION
+      {/* ========================================================================= */}
+      {/* DESK CALENDAR STAND INTERFACE                                            */}
+      {/* ========================================================================= */}
+      <div className="relative pt-6 pb-4">
+        {/* Desk Calendar Wooden / Brass Header Spine */}
+        <div className="max-w-3xl mx-auto relative z-20">
+          <div className="h-7 bg-gradient-to-r from-[#2e130c] via-[#4d2417] to-[#2e130c] rounded-t-2xl border-t-2 border-x-2 border-amber-600/70 shadow-lg flex items-center justify-around px-8">
+            {/* Metallic Brass Spiral Binding Rings */}
+            {[...Array(9)].map((_, i) => (
+              <div key={i} className="relative -top-2 flex flex-col items-center">
+                {/* Spiral Ring */}
+                <div className="w-3.5 h-6 rounded-full border-2 border-amber-400 bg-gradient-to-b from-amber-200 via-amber-500 to-amber-700 shadow-md shadow-black/80" />
+                {/* Ring Hole cutout */}
+                <div className="w-2 h-2 rounded-full bg-[#180a08] border border-amber-900 -mt-1" />
               </div>
-              <p className="text-amber-100 text-base sm:text-lg leading-relaxed font-serif">
-                {currentShloka.englishMeaning}
-              </p>
-              {currentShloka.commentaryEnglish && (
-                <div className="mt-3 pt-3 border-t border-amber-900/50 text-xs sm:text-sm text-amber-300/80 italic font-serif">
-                  <span className="text-amber-400 font-semibold not-italic">Inner Reflection: </span>
-                  {currentShloka.commentaryEnglish}
-                </div>
-              )}
-            </div>
-          )}
-
-          {(activeTab === 'bilingual' || activeTab === 'hindi') && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#1d0707] border-l-4 border-amber-500 border border-amber-500/20 shadow-md font-hindi">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 mb-2 font-sans">
-                हिंदी सरल भावार्थ
-              </div>
-              <p className="text-amber-100 text-lg sm:text-xl leading-relaxed">
-                {currentShloka.hindiMeaning}
-              </p>
-              {currentShloka.commentaryHindi && (
-                <div className="mt-3 pt-3 border-t border-amber-900/50 text-xs sm:text-sm text-amber-300/80 italic">
-                  <span className="text-amber-400 font-semibold not-italic font-sans">चिन्तन: </span>
-                  {currentShloka.commentaryHindi}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Bottom Navigation Buttons */}
-        <div className="mt-8 pt-6 border-t border-amber-900/60 flex items-center justify-between gap-4">
-          <button
-            onClick={handlePrev}
-            disabled={currentIdx === 0}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full border text-sm font-semibold transition-all ${
-              currentIdx === 0
-                ? 'opacity-30 cursor-not-allowed border-amber-950 text-amber-900'
-                : 'border-amber-600/50 bg-[#200808] text-amber-200 hover:bg-[#2e0c0c] hover:border-amber-500'
-            }`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Previous Verse</span>
-          </button>
-
-          <div className="text-xs text-amber-300/60 hidden sm:block">
-            {currentIdx + 1} of {shlokas.length} in this session
+            ))}
           </div>
-
-          <button
-            onClick={handleNext}
-            className="flex items-center gap-2 px-7 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-sm font-bold shadow-lg shadow-amber-500/30 transition-all transform active:scale-95"
-          >
-            <span>
-              {currentIdx === shlokas.length - 1 ? 'Complete Session 🌟' : 'Next Verse'}
-            </span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
-        {/* Bottom Sacred Chant */}
-        <div className="mt-8 text-center text-xs tracking-widest text-amber-400/70 uppercase font-serif">
-          ॥ हरिः ॐ तत् सत् ॥
+        {/* 3D Perspective Card Container */}
+        <div className="perspective-1200 max-w-3xl mx-auto">
+          {/* Stacked Shadow Underlay Pages (Gives real calendar page depth) */}
+          <div className="relative">
+            {/* Underlay bottom shadow page */}
+            <div className="absolute inset-x-2 -bottom-2 h-full rounded-b-3xl bg-[#f0e4cb] border border-amber-800/40 opacity-40 shadow-xl pointer-events-none" />
+            <div className="absolute inset-x-1 -bottom-1 h-full rounded-b-3xl bg-[#f5ecda] border border-amber-800/50 opacity-70 shadow-lg pointer-events-none" />
+
+            {/* Active Calendar Page Card with Flip Animation */}
+            <div
+              className={`relative rounded-b-3xl bg-[#fdfbf7] text-[#2c1810] border-2 border-amber-500/60 p-6 sm:p-10 shadow-2xl transition-all duration-300 ${
+                flipDirection === 'next'
+                  ? 'page-flip-next'
+                  : flipDirection === 'prev'
+                  ? 'page-flip-prev'
+                  : ''
+              }`}
+            >
+              {/* Paper Watermark Texture & Turning Om */}
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 select-none pointer-events-none opacity-[0.06] text-amber-950 text-[180px] sm:text-[240px] font-serif leading-none animate-spin-slow">
+                ॐ
+              </div>
+
+              {/* Calendar Page Header: Date / Chapter Pill & Verse Number */}
+              <div className="flex items-start justify-between border-b-2 border-amber-800/20 pb-4 mb-6">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-900/10 border border-amber-700/30 text-[11px] font-bold text-amber-900 uppercase tracking-widest">
+                    <span>CHAPTER {currentShloka.chapter}</span>
+                    <span>•</span>
+                    <span className="font-hindi">{chapterMeta?.nameSanskrit}</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-serif font-black text-[#3a1d0f] mt-1.5 tracking-tight">
+                    {chapterMeta?.nameEnglish}
+                  </h3>
+                  <div className="text-xs text-amber-900/70 font-hindi mt-0.5">
+                    {chapterMeta?.nameHindi}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  {/* Calendar Desk Day/Verse Badge */}
+                  <div className="flex flex-col items-center justify-center bg-gradient-to-b from-[#b45309] to-[#78350f] text-amber-100 rounded-xl px-4 py-2 border border-amber-400 shadow-md">
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-85">VERSE</span>
+                    <span className="text-2xl sm:text-3xl font-black font-sans leading-none mt-0.5">
+                      {currentShloka.verse}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handleToggleBookmark(currentShloka.id)}
+                    className="p-1 text-amber-800/60 hover:text-amber-800 mt-1"
+                    title="Bookmark this verse"
+                  >
+                    <Bookmark className={`w-4 h-4 ${bookmarkedIds.includes(currentShloka.id) ? 'fill-amber-600 text-amber-600' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Golden Lotus Divider */}
+              <div className="my-4 flex items-center justify-center gap-3">
+                <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-700/30 to-transparent flex-1" />
+                <span className="text-amber-700 text-sm select-none">🪷</span>
+                <div className="h-[1px] bg-gradient-to-r from-transparent via-amber-700/30 to-transparent flex-1" />
+              </div>
+
+              {/* Sanskrit Shloka on Card */}
+              <div className="my-6 text-center space-y-4">
+                <p className="font-serif text-2xl sm:text-3xl md:text-4xl leading-relaxed sm:leading-loose font-bold tracking-wide text-[#35180c] whitespace-pre-line select-text">
+                  {currentShloka.sanskrit}
+                </p>
+
+                {/* Transliteration */}
+                <p className="font-serif italic text-sm sm:text-base text-amber-900/80 max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
+                  {currentShloka.transliteration}
+                </p>
+              </div>
+
+              {/* Glowing Audio Bar directly on Calendar card */}
+              <div className="my-6 p-3.5 rounded-2xl bg-[#f4ebe1] border border-amber-700/30 flex flex-wrap items-center justify-between gap-3 shadow-inner">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={handleToggleListen}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm tracking-wide transition-all shadow-md ${
+                      isSpeaking
+                        ? 'bg-amber-400 text-slate-950 shadow-amber-400/50 ring-4 ring-amber-400/40 animate-pulse'
+                        : 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 shadow-amber-500/40 hover:shadow-amber-400/60 hover:scale-105 active:scale-95'
+                    }`}
+                  >
+                    {isSpeaking ? (
+                      <>
+                        <Pause className="w-4 h-4 fill-current" />
+                        <span>Pause Audio</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4 fill-current" />
+                        <span>{isContinuousMode ? 'Continuous Audio' : 'Listen'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  <select
+                    value={listenLanguage}
+                    onChange={(e) => {
+                      gitaSpeech.cancel();
+                      setIsSpeaking(false);
+                      setListenLanguage(e.target.value as any);
+                    }}
+                    className="bg-[#faf3e8] border border-amber-700/40 rounded-full px-3 py-1.5 text-xs text-[#35180c] font-medium focus:outline-none focus:border-amber-600"
+                  >
+                    <option value="sanskrit_then_hindi">Sanskrit + हिंदी भावार्थ + चिन्तन</option>
+                    <option value="sanskrit_then_english">Sanskrit + English + Reflection</option>
+                    <option value="english_only">English voice only</option>
+                    <option value="hindi_only">हिंदी केवल (Hindi only)</option>
+                  </select>
+
+                  <div className="inline-flex rounded-full bg-[#ebdccb] border border-amber-700/30 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        gitaSpeech.cancel();
+                        setIsSpeaking(false);
+                        setVoiceGender('male');
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                        voiceGender === 'male'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'text-[#5a311b] hover:text-black'
+                      }`}
+                    >
+                      🧔 Male
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        gitaSpeech.cancel();
+                        setIsSpeaking(false);
+                        setVoiceGender('female');
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                        voiceGender === 'female'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'text-[#5a311b] hover:text-black'
+                      }`}
+                    >
+                      👩 Female
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-[#693d24] font-medium">
+                  {isContinuousMode ? '🔄 Auto Flip Active' : '👆 Tap to flip'}
+                </div>
+              </div>
+
+              {/* Translation Pill Toggle */}
+              <div className="my-4">
+                <div className="flex items-center justify-center p-1 rounded-full bg-[#f0e4cb] border border-amber-700/30 max-w-sm mx-auto">
+                  <button
+                    onClick={() => setActiveTab('bilingual')}
+                    className={`flex-1 py-1.5 px-3 rounded-full text-xs font-bold transition-all ${
+                      activeTab === 'bilingual'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-[#5a311b] hover:text-black'
+                    }`}
+                  >
+                    Bilingual
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('english')}
+                    className={`flex-1 py-1.5 px-3 rounded-full text-xs font-bold transition-all ${
+                      activeTab === 'english'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-[#5a311b] hover:text-black'
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('hindi')}
+                    className={`flex-1 py-1.5 px-3 rounded-full text-xs font-bold font-hindi transition-all ${
+                      activeTab === 'hindi'
+                        ? 'bg-amber-600 text-white shadow-sm'
+                        : 'text-[#5a311b] hover:text-black'
+                    }`}
+                  >
+                    हिंदी
+                  </button>
+                </div>
+              </div>
+
+              {/* Translation and Inner Reflection on Calendar Page */}
+              <div className="space-y-4 pt-2">
+                {(activeTab === 'bilingual' || activeTab === 'english') && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#f7f0e3] border-l-4 border-amber-600 border border-amber-700/20 shadow-sm">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 mb-1.5">
+                      ENGLISH TRANSLATION
+                    </div>
+                    <p className="text-[#35180c] text-base sm:text-lg leading-relaxed font-serif">
+                      {currentShloka.englishMeaning}
+                    </p>
+                    {currentShloka.commentaryEnglish && (
+                      <div className="mt-2.5 pt-2.5 border-t border-amber-800/15 text-xs sm:text-sm text-amber-900/85 italic font-serif">
+                        <span className="text-amber-800 font-bold not-italic">Inner Reflection: </span>
+                        {currentShloka.commentaryEnglish}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {(activeTab === 'bilingual' || activeTab === 'hindi') && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#f7f0e3] border-l-4 border-amber-600 border border-amber-700/20 shadow-sm font-hindi">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 mb-1.5 font-sans">
+                      हिंदी सरल भावार्थ
+                    </div>
+                    <p className="text-[#35180c] text-lg sm:text-xl leading-relaxed">
+                      {currentShloka.hindiMeaning}
+                    </p>
+                    {currentShloka.commentaryHindi && (
+                      <div className="mt-2.5 pt-2.5 border-t border-amber-800/15 text-xs sm:text-sm text-amber-900/85 italic">
+                        <span className="text-amber-800 font-bold not-italic font-sans">चिन्तन: </span>
+                        {currentShloka.commentaryHindi}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Flip Page Navigation Controls */}
+              <div className="mt-8 pt-5 border-t-2 border-amber-800/20 flex items-center justify-between gap-4">
+                <button
+                  onClick={handlePrev}
+                  disabled={currentIdx === 0}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-xs sm:text-sm font-bold transition-all ${
+                    currentIdx === 0
+                      ? 'opacity-30 cursor-not-allowed border-amber-800/20 text-amber-800/40'
+                      : 'border-amber-700/40 bg-[#f0e4cb] text-[#3a1d0f] hover:bg-[#e6d8bc] active:scale-95'
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Flip Back</span>
+                </button>
+
+                <div className="text-xs text-amber-900/60 font-serif font-bold">
+                  Card {currentIdx + 1} of {shlokas.length}
+                </div>
+
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-1.5 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-amber-900/30 transition-all transform active:scale-95"
+                >
+                  <span>{currentIdx === shlokas.length - 1 ? 'Finish Session 🌟' : 'Flip Next Page ➔'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Bottom Sacred Footer Quote on Card */}
+              <div className="mt-6 text-center text-xs tracking-widest text-amber-900/50 uppercase font-serif">
+                ॥ हरिः ॐ तत् सत् ॥
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* Desk Calendar Wooden Base Stand Bottom */}
+        <div className="max-w-3xl mx-auto">
+          <div className="h-4 bg-gradient-to-r from-[#200b06] via-[#3a180e] to-[#200b06] rounded-b-2xl border-b-2 border-x-2 border-amber-900/80 shadow-2xl mx-3" />
+        </div>
       </div>
 
       {/* Verses In This Session Quick Jump Tray */}
@@ -599,10 +639,10 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs uppercase tracking-wider text-amber-400/80 font-semibold flex items-center gap-2">
             <List className="w-3.5 h-3.5 text-amber-400" />
-            <span>Verses in this {totalSessionMinutes}-minute session</span>
+            <span>Desk Calendar Cards in this session ({shlokas.length} Total)</span>
           </div>
           <span className="text-xs text-amber-400 font-medium">
-            Tap any verse to jump
+            Tap to flip directly to card
           </span>
         </div>
 
@@ -616,7 +656,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                 onClick={() => {
                   gitaSpeech.cancel();
                   setIsSpeaking(false);
-                  setCurrentIdx(idx);
+                  triggerFlip(idx > currentIdx ? 'next' : 'prev', idx);
                 }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border shrink-0 transition-all flex items-center gap-1.5 ${
                   isCurrent
