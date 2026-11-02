@@ -2,10 +2,11 @@ import { UserProfile } from '../types';
 import { GITA_SHLOKAS } from '../data/shlokas';
 
 const STORAGE_KEY = 'daily_gita_user_profile';
+const COOKIE_KEY = 'daily_gita_profile_id';
 
 export const DEFAULT_PROFILE: UserProfile = {
-  id: 'guest_seeker',
-  name: 'Arjuna Seeker',
+  id: 'devoted_seeker',
+  name: 'Seeker',
   preferredLanguage: 'english',
   voiceEngine: 'native',
   voiceGender: 'male',
@@ -22,28 +23,73 @@ export const DEFAULT_PROFILE: UserProfile = {
   history: []
 };
 
-export const getStoredProfile = (): UserProfile | null => {
+// Helper to set cross-session cookie for iOS Safari / Mobile Chrome
+function setCookie(name: string, val: string, days: number = 365) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error('Failed reading user profile from localStorage', err);
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(val)}; expires=${expires}; path=/; SameSite=Lax`;
+  } catch (e) {}
+}
+
+function getCookie(name: string): string | null {
+  try {
+    const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  } catch (e) {
     return null;
   }
+}
+
+// Multi-tier storage retrieval: localStorage -> cookie fallback -> auto-initialize
+export const getStoredProfile = (): UserProfile => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('localStorage reading error on mobile:', err);
+  }
+
+  // Check cookie backup
+  try {
+    const cookieData = getCookie(STORAGE_KEY);
+    if (cookieData) {
+      const parsed = JSON.parse(cookieData);
+      if (parsed && typeof parsed === 'object') {
+        saveStoredProfile(parsed);
+        return parsed;
+      }
+    }
+  } catch (err) {}
+
+  // Auto-initialize profile immediately so mobile users never face a recurring popup wall
+  const autoCreated: UserProfile = {
+    ...DEFAULT_PROFILE,
+    id: `seeker_${Date.now()}`
+  };
+  saveStoredProfile(autoCreated);
+  return autoCreated;
 };
 
 export const saveStoredProfile = (profile: UserProfile): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    const serialized = JSON.stringify(profile);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    // Write to cookie as mobile storage backup (prevents iOS WebKit 7-day storage purge)
+    setCookie(STORAGE_KEY, serialized, 365);
   } catch (err) {
-    console.error('Failed saving user profile to localStorage', err);
+    console.error('Failed saving user profile to storage', err);
   }
 };
 
 export const removeStoredProfile = (): void => {
   try {
     localStorage.removeItem(STORAGE_KEY);
+    setCookie(STORAGE_KEY, '', -1);
   } catch (err) {
     console.error('Failed removing profile', err);
   }
@@ -55,18 +101,13 @@ export const calculateShlokasForTime = (
   readingSpeed: 'slow' | 'medium' | 'fast',
   currentIndex: number
 ) => {
-  // slow: ~3 mins per shloka (detailed commentary + chant)
-  // medium: ~2 mins per shloka
-  // fast: ~1 min per shloka
   let minsPerShloka = 2;
   if (readingSpeed === 'slow') minsPerShloka = 3;
   if (readingSpeed === 'fast') minsPerShloka = 1;
 
   let count = Math.max(1, Math.round(timeMinutes / minsPerShloka));
   
-  // Bound to available shlokas
   const total = GITA_SHLOKAS.length;
-  // If currentIndex reached end, loop or clamp
   const safeCurrentIndex = currentIndex >= total ? 0 : currentIndex;
   const endIndex = Math.min(total, safeCurrentIndex + count);
   const selected = GITA_SHLOKAS.slice(safeCurrentIndex, endIndex);

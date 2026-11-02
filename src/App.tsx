@@ -33,24 +33,22 @@ export function App() {
   // Initialize profile on mount
   useEffect(() => {
     const stored = getStoredProfile();
-    if (stored) {
-      const today = new Date().toISOString().split('T')[0];
-      if (stored.lastActiveDate !== today) {
-        const lastDate = new Date(stored.lastActiveDate);
-        const currDate = new Date(today);
-        const diffDays = Math.round((currDate.getTime() - lastDate.getTime()) / (1000 * 3600 * 24));
-        if (diffDays === 1) {
-          stored.streakDays = (stored.streakDays || 1) + 1;
-        } else if (diffDays > 1) {
-          stored.streakDays = 1;
-        }
-        stored.lastActiveDate = today;
-        saveStoredProfile(stored);
+    const today = new Date().toISOString().split('T')[0];
+    if (stored.lastActiveDate !== today) {
+      const lastDate = new Date(stored.lastActiveDate);
+      const currDate = new Date(today);
+      const diffDays = Math.round((currDate.getTime() - lastDate.getTime()) / (1000 * 3600 * 24));
+      if (diffDays === 1) {
+        stored.streakDays = (stored.streakDays || 1) + 1;
+      } else if (diffDays > 1) {
+        stored.streakDays = 1;
       }
-      setUser(stored);
-    } else {
-      setIsAuthOpen(true);
+      stored.lastActiveDate = today;
+      saveStoredProfile(stored);
     }
+    setUser(stored);
+    // Never force a popup modal on mobile reopen
+    setIsAuthOpen(false);
   }, []);
 
   const handleUpdateUser = (updated: UserProfile) => {
