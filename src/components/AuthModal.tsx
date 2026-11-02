@@ -151,21 +151,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <label className="block text-xs uppercase tracking-wider text-amber-400/80 font-medium mb-1.5">
               <span className="flex items-center gap-1.5">
                 <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                Sacred Background Ambience
+                Background Music (Bansuri Flute)
               </span>
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'flute', label: '🪈 Flute' },
-                { id: 'tanpura', label: '🪕 Tanpura' },
-                { id: 'om', label: '🕉️ Om Drone' },
-                { id: 'none', label: '🔇 Silent' },
+                { id: 'flute', label: '🪈 Flute (On)' },
+                { id: 'none', label: '🔇 Silent (Off)' },
               ].map((sound) => (
                 <button
                   key={sound.id}
                   type="button"
                   onClick={() => setAmbientSound(sound.id as any)}
-                  className={`py-1.5 px-2 rounded-xl border text-xs font-medium text-center transition-all ${
+                  className={`py-2 px-3 rounded-xl border text-xs font-medium text-center transition-all ${
                     ambientSound === sound.id
                       ? 'bg-amber-500/20 border-amber-400 text-amber-200'
                       : 'bg-slate-800/50 border-slate-700/80 text-slate-400 hover:border-slate-600'

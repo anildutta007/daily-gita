@@ -51,7 +51,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   // Audio state
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [ambientPlaying, setAmbientPlaying] = useState(user.ambientSound !== 'none');
-  const [ambientType, setAmbientType] = useState(user.ambientSound);
 
   // Time tracking
   const [secondsRemaining, setSecondsRemaining] = useState(totalSessionMinutes * 60);
@@ -63,10 +62,10 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   const currentShloka: Shloka = shlokas[currentIdx] || shlokas[0];
   const chapterMeta = CHAPTER_METADATA.find(c => c.chapter === currentShloka?.chapter);
 
-  // Initialize ambient music
+  // Initialize ambient music (flute only)
   useEffect(() => {
-    if (ambientPlaying && ambientType !== 'none') {
-      ambientSound.play(ambientType, 0.2);
+    if (ambientPlaying) {
+      ambientSound.play('flute', 0.2);
     }
     return () => {
       ambientSound.stop();
@@ -89,25 +88,34 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to determine if commentary contains substantive wisdom
+  const isMeaningfulCommentary = (text?: string): boolean => {
+    if (!text) return false;
+    const clean = text.trim();
+    if (!clean) return false;
+    const lower = clean.toLowerCase();
+    if (
+      lower.startsWith('no commentary') ||
+      lower.startsWith('there is no purport') ||
+      lower.startsWith('no purport') ||
+      lower === 'no commentary.' ||
+      lower === 'no commentary....' ||
+      lower.includes('no commentary for this verse') ||
+      lower.includes('no purport for this verse')
+    ) {
+      return false;
+    }
+    // Also ensure not just punctuation/dandas
+    const stripped = clean.replace(/[\s।.,:;_\-~'"`!]/g, '');
+    return stripped.length > 3;
+  };
+
   const handleToggleAmbient = () => {
     if (ambientPlaying) {
       ambientSound.stop();
       setAmbientPlaying(false);
     } else {
-      const modeToPlay = ambientType === 'none' ? 'flute' : ambientType;
-      setAmbientType(modeToPlay);
-      ambientSound.play(modeToPlay, 0.2);
-      setAmbientPlaying(true);
-    }
-  };
-
-  const handleAmbientChange = (mode: 'flute' | 'tanpura' | 'om' | 'none') => {
-    setAmbientType(mode);
-    if (mode === 'none') {
-      ambientSound.stop();
-      setAmbientPlaying(false);
-    } else {
-      ambientSound.play(mode, 0.2);
+      ambientSound.play('flute', 0.2);
       setAmbientPlaying(true);
     }
   };
@@ -132,8 +140,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           lang: 'en',
           rate: 0.92
         });
-        // Step 3: Inner Reflection
-        if (targetShloka.commentaryEnglish) {
+        // Step 3: Inner Reflection (only if meaningful commentary exists)
+        if (isMeaningfulCommentary(targetShloka.commentaryEnglish)) {
           await gitaSpeech.speak({
             text: `Inner Reflection: ${targetShloka.commentaryEnglish}`,
             lang: 'en',
@@ -153,8 +161,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           lang: 'hi',
           rate: 0.88
         });
-        // Step 3: Inner Reflection (Chintan)
-        if (targetShloka.commentaryHindi) {
+        // Step 3: Inner Reflection (Chintan) (only if meaningful commentary exists)
+        if (isMeaningfulCommentary(targetShloka.commentaryHindi)) {
           await gitaSpeech.speak({
             text: `चिन्तन: ${targetShloka.commentaryHindi}`,
             lang: 'hi',
@@ -162,14 +170,22 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           });
         }
       } else if (listenLanguage === 'english_only') {
+        const hasComm = isMeaningfulCommentary(targetShloka.commentaryEnglish);
+        const spokenText = hasComm
+          ? `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish}`
+          : targetShloka.englishMeaning;
         await gitaSpeech.speak({
-          text: `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish || ''}`,
+          text: spokenText,
           lang: 'en',
           rate: 0.92
         });
       } else if (listenLanguage === 'hindi_only') {
+        const hasComm = isMeaningfulCommentary(targetShloka.commentaryHindi);
+        const spokenText = hasComm
+          ? `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi}`
+          : targetShloka.hindiMeaning;
         await gitaSpeech.speak({
-          text: `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi || ''}`,
+          text: spokenText,
           lang: 'hi',
           rate: 0.88
         });
@@ -308,32 +324,28 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
           </div>
         </div>
 
-        {/* Ambient audio toggle pill */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleToggleAmbient}
-            title={ambientPlaying ? 'Mute sacred background' : 'Play sacred background'}
-            className={`p-2 rounded-xl text-xs transition-all flex items-center gap-1.5 border ${
-              ambientPlaying
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm'
-                : 'bg-[#1b0808] text-amber-200/60 border-amber-900/60 hover:text-amber-200'
-            }`}
-          >
-            {ambientPlaying ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
-            <span className="hidden sm:inline capitalize">{ambientType}</span>
-          </button>
-
-          <select
-            value={ambientType}
-            onChange={(e) => handleAmbientChange(e.target.value as any)}
-            className="bg-[#140505] text-xs text-amber-300 border border-amber-700/60 rounded-xl px-2 py-1.5 focus:outline-none focus:border-amber-400"
-          >
-            <option value="flute">🪈 Bansuri Flute</option>
-            <option value="tanpura">🪕 Tanpura Drone</option>
-            <option value="om">🕉️ Om Frequency</option>
-            <option value="none">🔇 None</option>
-          </select>
-        </div>
+        {/* Ambient audio toggle pill (Flute only) */}
+        <button
+          onClick={handleToggleAmbient}
+          title={ambientPlaying ? 'Mute flute' : 'Play flute background'}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 border shadow-sm ${
+            ambientPlaying
+              ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
+              : 'bg-[#1b0808] text-amber-200/60 border-amber-900/60 hover:text-amber-200'
+          }`}
+        >
+          {ambientPlaying ? (
+            <>
+              <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>🪈 Flute On</span>
+            </>
+          ) : (
+            <>
+              <VolumeX className="w-3.5 h-3.5" />
+              <span>🪈 Flute Off</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* ========================================================================= */}
@@ -527,7 +539,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                     <p className="text-[#35180c] text-base sm:text-lg leading-relaxed font-serif">
                       {currentShloka.englishMeaning}
                     </p>
-                    {currentShloka.commentaryEnglish && (
+                    {isMeaningfulCommentary(currentShloka.commentaryEnglish) && (
                       <div className="mt-2.5 pt-2.5 border-t border-amber-800/15 text-xs sm:text-sm text-amber-900/85 italic font-serif">
                         <span className="text-amber-800 font-bold not-italic">Inner Reflection: </span>
                         {currentShloka.commentaryEnglish}
@@ -544,7 +556,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                     <p className="text-[#35180c] text-lg sm:text-xl leading-relaxed">
                       {currentShloka.hindiMeaning}
                     </p>
-                    {currentShloka.commentaryHindi && (
+                    {isMeaningfulCommentary(currentShloka.commentaryHindi) && (
                       <div className="mt-2.5 pt-2.5 border-t border-amber-800/15 text-xs sm:text-sm text-amber-900/85 italic">
                         <span className="text-amber-800 font-bold not-italic font-sans">चिन्तन: </span>
                         {currentShloka.commentaryHindi}
