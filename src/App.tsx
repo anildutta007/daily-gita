@@ -11,7 +11,8 @@ import { TimeSelector } from './components/TimeSelector';
 import { ReadingSession } from './components/ReadingSession';
 import { ProfileModal } from './components/ProfileModal';
 import { ChapterBrowserModal } from './components/ChapterBrowserModal';
-import { BookOpen, LogOut } from 'lucide-react';
+import { BookOpen, LogOut, Users } from 'lucide-react';
+import { recordAndGetVisitorCount } from './utils/visitorCounter';
 import chariotBanner from './assets/krishna-arjuna-banner.png';
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isBrowserOpen, setIsBrowserOpen] = useState(false);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
   // Session state
   const [activeSession, setActiveSession] = useState<{
@@ -28,8 +30,12 @@ export function App() {
     sessionMode: 'listen' | 'read';
   } | null>(null);
 
-  // Initialize profile on mount
+  // Initialize profile & visitor count on mount
   useEffect(() => {
+    recordAndGetVisitorCount().then(count => {
+      setVisitorCount(count);
+    });
+
     const stored = getStoredProfile();
     const today = new Date().toISOString().split('T')[0];
     if (stored.lastActiveDate !== today) {
@@ -158,6 +164,18 @@ export function App() {
 
         {/* Right Nav Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Visitor Counter Badge */}
+          {visitorCount !== null && (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1c0808] border border-amber-600/40 text-[11px] text-amber-300 font-mono shadow-sm"
+              title={`Total seekers who have visited: ${visitorCount}`}
+            >
+              <Users className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-semibold text-amber-200">{visitorCount}</span>
+              <span className="text-[10px] text-amber-300/70 hidden md:inline">seekers</span>
+            </div>
+          )}
+
           {user ? (
             <>
               {/* 18 Chapters button */}
@@ -264,13 +282,19 @@ export function App() {
       </main>
 
       {/* Footer with "Hari Om Tat Sat" (As requested) */}
-      <footer className="py-6 px-4 border-t border-amber-900/40 bg-[#0d0303] text-center text-xs text-amber-300/60 space-y-1">
+      <footer className="py-6 px-4 border-t border-amber-900/40 bg-[#0d0303] text-center text-xs text-amber-300/60 space-y-2">
         <p className="font-serif tracking-widest text-amber-400 text-sm">
           ॥ हरिः ॐ तत् सत् ॥
         </p>
         <p className="text-[11px] text-amber-300/40">
           Daily Gita Companion • Sacred Shlokas at your pace
         </p>
+        {visitorCount !== null && (
+          <div className="pt-2 flex items-center justify-center gap-1.5 text-[11px] text-amber-400/80">
+            <Users className="w-3.5 h-3.5 text-amber-500" />
+            <span>Seekers visited: <strong className="font-mono text-amber-300">{visitorCount}</strong></span>
+          </div>
+        )}
       </footer>
 
       {/* Modals */}
