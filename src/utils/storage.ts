@@ -7,7 +7,9 @@ export const DEFAULT_PROFILE: UserProfile = {
   id: 'guest_seeker',
   name: 'Arjuna Seeker',
   preferredLanguage: 'english',
+  voiceEngine: 'native',
   voiceGender: 'male',
+  elevenLabsVoiceId: 'pNInz6obpgDQGcFmaJgB',
   readingSpeed: 'medium', // 2 min per shloka
   ambientSound: 'flute',
   voiceSpeed: 0.95,

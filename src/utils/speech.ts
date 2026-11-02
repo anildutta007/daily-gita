@@ -1,10 +1,14 @@
-// Robust, Instant-Response Multilingual Speech Engine for Bhagavad Gita
-// Supports Male & Female voice selections with intelligent natural voice matching
+// Unified Speech Engine for Bhagavad Gita
+// Supports:
+// 1. ElevenLabs Premium Audio Stream (Ultra-realistic human voices with multilingual models)
+// 2. Browser Native Speech Synthesis (High-reliability fallback with Male/Female natural voices)
 
 export interface SpeechOptions {
   text: string;
   lang: 'hi' | 'en';
   gender?: 'male' | 'female';
+  elevenLabsApiKey?: string;
+  elevenLabsVoiceId?: string;
   rate?: number; // 0.85 - 1.0
   pitch?: number;
   onEnd?: () => void;
@@ -14,6 +18,7 @@ export interface SpeechOptions {
 class GitaSpeechEngine {
   private synth: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private currentAudio: HTMLAudioElement | null = null;
   private voices: SpeechSynthesisVoice[] = [];
   private isCancelled: boolean = false;
 
@@ -40,7 +45,92 @@ class GitaSpeechEngine {
     return this.voices;
   }
 
-  // Select voice based on language and Male / Female preference
+  // Play audio preview directly from an audio URL (e.g. for ElevenLabs voice preview sample)
+  public playAudioSample(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.cancel();
+      this.isCancelled = false;
+
+      const audio = new Audio(url);
+      this.currentAudio = audio;
+
+      audio.onended = () => {
+        this.currentAudio = null;
+        resolve();
+      };
+      audio.onerror = (e) => {
+        this.currentAudio = null;
+        reject(e);
+      };
+      audio.play().catch(reject);
+    });
+  }
+
+  // Generate and play audio directly from ElevenLabs REST API
+  private async speakElevenLabs(
+    text: string,
+    apiKey: string,
+    voiceId: string
+  ): Promise<boolean> {
+    try {
+      if (this.isCancelled) return false;
+
+      const cleanText = text.replace(/[*_#`॥]/g, '').trim();
+      if (!cleanText) return true;
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey.trim(),
+          Accept: 'audio/mpeg'
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.55,
+            similarity_boost: 0.8,
+            style: 0.15,
+            use_speaker_boost: true
+          }
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('ElevenLabs API response not ok:', response.status, response.statusText);
+        return false;
+      }
+
+      const blob = await response.blob();
+      if (this.isCancelled) return false;
+
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+
+      await new Promise<void>((resolve, reject) => {
+        audio.onended = () => {
+          this.currentAudio = null;
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        audio.onerror = (e) => {
+          this.currentAudio = null;
+          URL.revokeObjectURL(audioUrl);
+          reject(e);
+        };
+        audio.play().catch(reject);
+      });
+
+      return true;
+    } catch (err) {
+      console.warn('ElevenLabs speech failed, falling back to browser neural voice:', err);
+      return false;
+    }
+  }
+
+  // Select voice based on language and Male / Female preference for fallback
   public getBestVoice(lang: 'hi' | 'en', gender: 'male' | 'female' = 'male'): SpeechSynthesisVoice | null {
     const voices = this.getVoices();
     if (!voices || voices.length === 0) return null;
@@ -66,14 +156,11 @@ class GitaSpeechEngine {
         }
       }
 
-      // General Hindi fallback
       const anyHindi = voices.find(v => v.lang.toLowerCase().includes('hi'));
       if (anyHindi) return anyHindi;
 
-      // Indian English fallback
       return voices.find(v => v.lang.toLowerCase() === 'en-in') || null;
     } else {
-      // English
       if (gender === 'male') {
         const maleKeywords = ['prabhat', 'guy', 'george', 'male', 'rishi', 'david', 'daniel'];
         for (const kw of maleKeywords) {
@@ -98,7 +185,7 @@ class GitaSpeechEngine {
     }
   }
 
-  private speakChunk(text: string, lang: 'hi' | 'en', gender: 'male' | 'female', rate: number): Promise<void> {
+  private speakNativeChunk(text: string, lang: 'hi' | 'en', gender: 'male' | 'female', rate: number): Promise<void> {
     return new Promise((resolve) => {
       if (!this.synth || this.isCancelled) {
         resolve();
@@ -111,7 +198,6 @@ class GitaSpeechEngine {
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
-      // Adjust pitch slightly: slightly deeper for male (0.95), slightly brighter for female (1.05)
       utterance.pitch = gender === 'male' ? 0.95 : 1.05;
       utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
 
@@ -149,10 +235,28 @@ class GitaSpeechEngine {
     });
   }
 
+  // Unified speak routine
   public async speak(options: SpeechOptions): Promise<void> {
     this.cancel();
     this.isCancelled = false;
 
+    const cleanText = options.text.replace(/[*_#`॥]/g, '').trim();
+    if (!cleanText) return;
+
+    // Check if user has provided an ElevenLabs API key and chosen a voice
+    if (options.elevenLabsApiKey && options.elevenLabsVoiceId) {
+      const success = await this.speakElevenLabs(
+        cleanText,
+        options.elevenLabsApiKey,
+        options.elevenLabsVoiceId
+      );
+      if (success) {
+        if (options.onEnd) options.onEnd();
+        return;
+      }
+    }
+
+    // Fallback: Browser Native Speech Synthesis
     if (!this.synth) {
       console.warn('Speech synthesis not supported in this browser.');
       return;
@@ -162,16 +266,13 @@ class GitaSpeechEngine {
       this.loadVoices();
     }
 
-    const cleanText = options.text.replace(/[*_#`॥]/g, '').trim();
-    if (!cleanText) return;
-
     const chunks = cleanText.split(/[\n।\.]+/).map(s => s.trim()).filter(s => s.length > 0);
     const rate = options.rate || (options.lang === 'hi' ? 0.86 : 0.92);
     const gender = options.gender || 'male';
 
     for (const chunk of chunks) {
       if (this.isCancelled) break;
-      await this.speakChunk(chunk, options.lang, gender, rate);
+      await this.speakNativeChunk(chunk, options.lang, gender, rate);
       await new Promise(r => setTimeout(r, 220));
     }
 
@@ -179,12 +280,18 @@ class GitaSpeechEngine {
   }
 
   public pause() {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+    }
     if (this.synth && this.synth.speaking) {
       this.synth.pause();
     }
   }
 
   public resume() {
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play();
+    }
     if (this.synth && this.synth.paused) {
       this.synth.resume();
     }
@@ -192,6 +299,11 @@ class GitaSpeechEngine {
 
   public cancel() {
     this.isCancelled = true;
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.src = '';
+      this.currentAudio = null;
+    }
     if (this.synth) {
       this.synth.cancel();
       this.currentUtterance = null;
@@ -199,7 +311,7 @@ class GitaSpeechEngine {
   }
 
   public isSpeaking(): boolean {
-    return !!(this.synth && (this.synth.speaking || this.synth.pending));
+    return !!(this.currentAudio || (this.synth && (this.synth.speaking || this.synth.pending)));
   }
 }
 
