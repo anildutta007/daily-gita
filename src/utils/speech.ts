@@ -15,7 +15,7 @@ class GitaSpeechEngine {
   private synth: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private voices: SpeechSynthesisVoice[] = [];
-  private isCancelled: boolean = false;
+  private currentSessionId: number = 0;
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -60,23 +60,26 @@ class GitaSpeechEngine {
       const anyHindi = voices.find(v => v.lang.toLowerCase().includes('hi'));
       if (anyHindi) return anyHindi;
 
-      return voices.find(v => v.lang.toLowerCase() === 'en-in') || null;
+      return voices[0] || null;
     } else {
-      // English female voices: Neerja, Aria, Samantha, Zira, Victoria, Katherine
-      const femaleEngKeywords = ['neerja', 'aria', 'samantha', 'female', 'zira', 'katherine', 'victoria', 'serena', 'jenny'];
-      for (const kw of femaleEngKeywords) {
+      // Prioritize natural Indian English female voices (Neerja, Heera, Priya, Veena)
+      const femaleEnglishKeywords = ['neerja', 'heera', 'priya', 'veena', 'female', 'samantha', 'victoria', 'aria'];
+      for (const kw of femaleEnglishKeywords) {
         const match = voices.find(v => 
-          v.lang.toLowerCase().startsWith('en') && 
+          (v.lang.toLowerCase().includes('en-in') || v.lang.toLowerCase().includes('en')) &&
           v.name.toLowerCase().includes(kw)
         );
         if (match) return match;
       }
 
-      return voices.find(v => v.lang.toLowerCase().startsWith('en')) || null;
+      const anyEnglish = voices.find(v => v.lang.toLowerCase().startsWith('en'));
+      if (anyEnglish) return anyEnglish;
+
+      return voices[0] || null;
     }
   }
 
-  // Thorough cleaner that strips all numerical verse references like 1-15, 1.15, [1-15], (1-15), etc.
+  // Strip numerical chapter & verse markers from contemplation reading
   public cleanSpiritualText(raw: string): string {
     return raw
       // Remove verse number patterns like 1-15, 1.15, 1:15, 18-78, etc.
@@ -91,9 +94,9 @@ class GitaSpeechEngine {
       .trim();
   }
 
-  private speakNativeChunk(text: string, lang: 'hi' | 'en', rate: number): Promise<void> {
+  private speakNativeChunk(text: string, lang: 'hi' | 'en', rate: number, sessionId: number): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.synth || this.isCancelled) {
+      if (!this.synth || sessionId !== this.currentSessionId) {
         resolve();
         return;
       }
@@ -116,6 +119,11 @@ class GitaSpeechEngine {
       let timeoutId: any = null;
 
       utterance.onstart = () => {
+        if (sessionId !== this.currentSessionId) {
+          if (this.synth) this.synth.cancel();
+          resolve();
+          return;
+        }
         timeoutId = setInterval(() => {
           if (this.synth && this.synth.speaking && !this.synth.paused) {
             this.synth.pause();
@@ -126,14 +134,18 @@ class GitaSpeechEngine {
 
       utterance.onend = () => {
         if (timeoutId) clearInterval(timeoutId);
-        this.currentUtterance = null;
+        if (this.currentUtterance === utterance) {
+          this.currentUtterance = null;
+        }
         resolve();
       };
 
       utterance.onerror = (e) => {
         if (timeoutId) clearInterval(timeoutId);
         console.warn('SpeechSynthesis error:', e);
-        this.currentUtterance = null;
+        if (this.currentUtterance === utterance) {
+          this.currentUtterance = null;
+        }
         resolve();
       };
 
@@ -143,8 +155,12 @@ class GitaSpeechEngine {
   }
 
   public async speak(options: SpeechOptions): Promise<void> {
-    this.cancel();
-    this.isCancelled = false;
+    const sessionId = ++this.currentSessionId;
+
+    if (this.synth) {
+      this.synth.cancel();
+      this.currentUtterance = null;
+    }
 
     if (!this.synth) {
       console.warn('Speech synthesis not supported in this browser.');
@@ -163,12 +179,15 @@ class GitaSpeechEngine {
     const rate = options.rate || (options.lang === 'hi' ? 0.86 : 0.92);
 
     for (const chunk of chunks) {
-      if (this.isCancelled) break;
-      await this.speakNativeChunk(chunk, options.lang, rate);
+      if (sessionId !== this.currentSessionId) break;
+      await this.speakNativeChunk(chunk, options.lang, rate, sessionId);
+      if (sessionId !== this.currentSessionId) break;
       await new Promise(r => setTimeout(r, 220));
     }
 
-    if (options.onEnd) options.onEnd();
+    if (options.onEnd && sessionId === this.currentSessionId) {
+      options.onEnd();
+    }
   }
 
   public pause() {
@@ -184,7 +203,7 @@ class GitaSpeechEngine {
   }
 
   public cancel() {
-    this.isCancelled = true;
+    this.currentSessionId++;
     if (this.synth) {
       this.synth.cancel();
       this.currentUtterance = null;

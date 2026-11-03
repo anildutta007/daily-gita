@@ -126,6 +126,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
     const targetShloka = shlokas[idxToPlay];
     if (!targetShloka) return;
 
+    // Immediately stop any ongoing audio playback across both engines
+    gitaAudioPlayer.stop();
     setIsSpeaking(true);
     try {
       const fallbackRecite = async () => {
@@ -224,6 +226,9 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   useEffect(() => {
     if (isContinuousMode) {
       playShloka(currentIdx, true);
+    } else {
+      gitaAudioPlayer.stop();
+      setIsSpeaking(false);
     }
     return () => {
       gitaAudioPlayer.stop();
@@ -231,6 +236,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   }, [currentIdx, isContinuousMode, listenLanguage]);
 
   const triggerFlip = (direction: 'next' | 'prev', newIndex: number) => {
+    gitaAudioPlayer.stop();
+    setIsSpeaking(false);
     setFlipDirection(direction);
     setTimeout(() => {
       setCurrentIdx(newIndex);
@@ -248,7 +255,9 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
       return;
     }
 
-    setIsContinuousMode(true);
+    // Single verse listen if user taps listen when not continuous
+    setIsSpeaking(true);
+    playShloka(currentIdx, isContinuousMode);
   };
 
   const handleNext = () => {
@@ -476,7 +485,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                   <select
                     value={listenLanguage}
                     onChange={(e) => {
-                      gitaSpeech.cancel();
+                      gitaAudioPlayer.stop();
                       setIsSpeaking(false);
                       setListenLanguage(e.target.value as any);
                     }}
@@ -633,7 +642,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
               <button
                 key={s.id}
                 onClick={() => {
-                  gitaSpeech.cancel();
+                  gitaAudioPlayer.stop();
                   setIsSpeaking(false);
                   triggerFlip(idx > currentIdx ? 'next' : 'prev', idx);
                 }}
