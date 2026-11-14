@@ -12,7 +12,7 @@ class GitaAudioPlayer {
   public async playVerse(params: {
     chapter: number;
     verse: number;
-    language: 'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only';
+    language: 'sanskrit_then_hindi' | 'sanskrit_then_english';
     fallbackRecitation: () => Promise<void>;
   }): Promise<void> {
     // Generate unique playId for this invocation to prevent overlapping tracks
@@ -22,8 +22,7 @@ class GitaAudioPlayer {
     this.stopInternal();
 
     // Determine target audio file path based on language choice
-    const isHindiTarget =
-      params.language === 'sanskrit_then_hindi' || params.language === 'hindi_only';
+    const isHindiTarget = params.language === 'sanskrit_then_hindi';
     const langSuffix = isHindiTarget ? 'hi' : 'en';
 
     // Support both root-relative path and Vite base path (e.g. on GitHub pages or local dev)

@@ -42,7 +42,7 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<'bilingual' | 'english' | 'hindi'>('bilingual');
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(initialMode === 'listen');
-  const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english' | 'hindi_only' | 'english_only'>(
+  const [listenLanguage, setListenLanguage] = useState<'sanskrit_then_hindi' | 'sanskrit_then_english'>(
     user.preferredLanguage === 'hindi' ? 'sanskrit_then_hindi' : 'sanskrit_then_english'
   );
   
@@ -149,7 +149,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
               rate: 0.90
             });
           }
-        } else if (listenLanguage === 'sanskrit_then_hindi') {
+        } else {
+          // Hindi: Sanskrit + Hindi Bhavarth + Chintan
           await gitaSpeech.speak({
             text: targetShloka.sanskrit,
             lang: 'hi',
@@ -167,26 +168,6 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
               rate: 0.86
             });
           }
-        } else if (listenLanguage === 'english_only') {
-          const hasComm = isMeaningfulCommentary(targetShloka.commentaryEnglish);
-          const spokenText = hasComm
-            ? `${targetShloka.englishMeaning}. Inner Reflection: ${targetShloka.commentaryEnglish}`
-            : targetShloka.englishMeaning;
-          await gitaSpeech.speak({
-            text: spokenText,
-            lang: 'en',
-            rate: 0.92
-          });
-        } else if (listenLanguage === 'hindi_only') {
-          const hasComm = isMeaningfulCommentary(targetShloka.commentaryHindi);
-          const spokenText = hasComm
-            ? `${targetShloka.hindiMeaning}। चिन्तन: ${targetShloka.commentaryHindi}`
-            : targetShloka.hindiMeaning;
-          await gitaSpeech.speak({
-            text: spokenText,
-            lang: 'hi',
-            rate: 0.88
-          });
         }
       };
 
@@ -491,10 +472,8 @@ export const ReadingSession: React.FC<ReadingSessionProps> = ({
                     }}
                     className="bg-[#faf3e8] border border-amber-700/40 rounded-full px-3 py-1.5 text-xs text-[#35180c] font-medium focus:outline-none focus:border-amber-600"
                   >
-                    <option value="sanskrit_then_hindi">Sanskrit + हिंदी भावार्थ + चिन्तन</option>
-                    <option value="sanskrit_then_english">Sanskrit + English + Reflection</option>
-                    <option value="english_only">English voice only</option>
-                    <option value="hindi_only">हिंदी केवल (Hindi only)</option>
+                    <option value="sanskrit_then_english">🇬🇧 English (Shloka + Meaning + Reflection)</option>
+                    <option value="sanskrit_then_hindi">🇮🇳 हिंदी (श्लोक + भावार्थ + चिन्तन)</option>
                   </select>
 
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ebdccb] border border-amber-700/30 text-xs font-semibold text-[#5a311b]">

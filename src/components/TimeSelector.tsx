@@ -6,19 +6,22 @@ import { Clock, BookOpen, Sparkles, Bookmark, ArrowRight, Play } from 'lucide-re
 
 interface TimeSelectorProps {
   user: UserProfile;
-  onStartSession: (durationMinutes: number, sessionMode: 'listen' | 'read') => void;
+  onStartSession: (durationMinutes: number, sessionMode: 'listen' | 'read', language: 'english' | 'hindi') => void;
   onOpenSettings: () => void;
   onResetToBeginning?: () => void;
+  onUpdatePreferredLanguage?: (lang: 'english' | 'hindi') => void;
 }
 
 export const TimeSelector: React.FC<TimeSelectorProps> = ({
   user,
   onStartSession,
-  onResetToBeginning
+  onResetToBeginning,
+  onUpdatePreferredLanguage
 }) => {
   const [customTime, setCustomTime] = useState<number>(10);
   const [selectedTime, setSelectedTime] = useState<number>(10);
   const [sessionMode, setSessionMode] = useState<'listen' | 'read'>('listen');
+  const [selectedLanguage, setSelectedLanguage] = useState<'english' | 'hindi'>(user.preferredLanguage || 'english');
 
   const presets = [
     { minutes: 5, label: '5 Mins', badge: 'Quick Reflection', verses: '2-3 verses' },
@@ -174,6 +177,76 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
           </div>
         </div>
 
+        {/* Language Selection: English or Hindi (Simplifying to Shloka + Meaning + Inner Reflection) */}
+        <div className="bg-[#140505] rounded-2xl p-4 sm:p-5 border border-amber-500/30 mb-6">
+          <div className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-1.5 flex items-center gap-2">
+            <span>Choose Your Language:</span>
+          </div>
+          <p className="text-xs text-amber-200/70 mb-3">
+            Recites the sacred Sanskrit shloka, followed by the translation and inner reflection.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLanguage('english');
+                if (onUpdatePreferredLanguage) onUpdatePreferredLanguage('english');
+              }}
+              className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                selectedLanguage === 'english'
+                  ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/20 text-amber-100 ring-1 ring-amber-400/50'
+                  : 'bg-[#1b0808] border-amber-900/60 text-amber-200/70 hover:border-amber-700'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-base flex items-center gap-2 text-amber-200">
+                    🇬🇧 English
+                  </span>
+                  {selectedLanguage === 'english' && (
+                    <span className="text-[10px] bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded-full uppercase">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-amber-300/80 leading-relaxed mt-1">
+                  Sanskrit Shloka ➔ English Translation ➔ Inner Reflection
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLanguage('hindi');
+                if (onUpdatePreferredLanguage) onUpdatePreferredLanguage('hindi');
+              }}
+              className={`p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                selectedLanguage === 'hindi'
+                  ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/20 text-amber-100 ring-1 ring-amber-400/50'
+                  : 'bg-[#1b0808] border-amber-900/60 text-amber-200/70 hover:border-amber-700'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-base flex items-center gap-2 text-amber-200 font-hindi">
+                    🇮🇳 हिंदी (Hindi)
+                  </span>
+                  {selectedLanguage === 'hindi' && (
+                    <span className="text-[10px] bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded-full uppercase font-sans">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-amber-300/80 leading-relaxed mt-1 font-hindi">
+                  संस्कृत श्लोक ➔ हिंदी सरल भावार्थ ➔ चिन्तन
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Session Mode Selector: Continuous Verse/Listen Mode vs Self-Paced Read Mode */}
         <div className="bg-[#140505] rounded-2xl p-4 sm:p-5 border border-amber-500/30 mb-6">
           <div className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-3 flex items-center gap-2">
@@ -253,7 +326,7 @@ export const TimeSelector: React.FC<TimeSelectorProps> = ({
             </div>
 
             <button
-              onClick={() => onStartSession(selectedTime, sessionMode)}
+              onClick={() => onStartSession(selectedTime, sessionMode, selectedLanguage)}
               className="flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-base shadow-xl shadow-amber-500/30 transition-all transform hover:scale-[1.02] active:scale-[0.98] shrink-0"
             >
               <Play className="w-5 h-5 fill-current" />

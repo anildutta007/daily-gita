@@ -74,8 +74,20 @@ export function App() {
     setIsAuthOpen(false);
   };
 
-  const handleStartSession = (durationMinutes: number, sessionMode: 'listen' | 'read' = 'listen') => {
+  const handleStartSession = (
+    durationMinutes: number,
+    sessionMode: 'listen' | 'read' = 'listen',
+    language?: 'english' | 'hindi'
+  ) => {
     if (!user) return;
+
+    if (language && language !== user.preferredLanguage) {
+      handleUpdateUser({
+        ...user,
+        preferredLanguage: language
+      });
+    }
+
     const { shlokas, startIndex } = calculateShlokasForTime(
       durationMinutes,
       user.readingSpeed,
@@ -288,6 +300,7 @@ export function App() {
             onStartSession={handleStartSession}
             onOpenSettings={() => setIsProfileOpen(true)}
             onResetToBeginning={() => handleSelectShloka(0)}
+            onUpdatePreferredLanguage={(lang) => handleUpdateUser({ ...user, preferredLanguage: lang })}
           />
         )}
       </main>
