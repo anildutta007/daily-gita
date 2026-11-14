@@ -1,7 +1,6 @@
 // Audio Player & Hybrid Recitation Service
-// Uses pre-rendered Studio-Grade Indian Neural Audio (.mp3) when available,
-// seamlessly falling back to in-browser Web Speech synthesis if offline or blocked.
-// Guarantees strict single-audio concurrency and resilient error handling.
+// Plays pre-recorded studio-grade Indian Neural Audio (.mp3) files.
+// Gracefully falls back to client speech synthesis ONLY if MP3 completely fails to load.
 
 import { gitaSpeech } from './speech';
 
@@ -15,42 +14,39 @@ class GitaAudioPlayer {
     language: 'sanskrit_then_hindi' | 'sanskrit_then_english';
     fallbackRecitation: () => Promise<void>;
   }): Promise<void> {
-    // Generate unique playId for this invocation to prevent overlapping tracks
     const playId = ++this.currentPlayId;
-
-    // Immediately stop any currently playing or scheduled audio
     this.stopInternal();
 
-    // Determine target audio file path based on language choice
     const isHindiTarget = params.language === 'sanskrit_then_hindi';
     const langSuffix = isHindiTarget ? 'hi' : 'en';
 
-    // Support both root-relative path and Vite base path (e.g. on GitHub pages or local dev)
+    // Support both Vite local server and deployed base URLs
     const base = import.meta.env.BASE_URL || '/';
-    const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-    const audioUrl = `${normalizedBase}audio/verses/ch${params.chapter}_v${params.verse}_${langSuffix}.mp3`;
+    const cleanBase = base.endsWith('/') ? base : `${base}/`;
+    const audioUrl = `${cleanBase}audio/verses/ch${params.chapter}_v${params.verse}_${langSuffix}.mp3`;
+
+    console.log(`[GitaAudioPlayer] Attempting to play neural MP3: ${audioUrl} (playId: ${playId})`);
 
     let playedSuccessfully = false;
-
     try {
       playedSuccessfully = await this.playAudioUrl(audioUrl, playId);
-    } catch (e) {
-      console.warn(`[GitaAudioPlayer] Neural audio error for ch${params.chapter}_v${params.verse}:`, e);
+    } catch (err) {
+      console.warn(`[GitaAudioPlayer] MP3 play failed for ${audioUrl}:`, err);
       playedSuccessfully = false;
     }
 
-    // Check if this playback request was superseded while loading
+    // If cancelled or superseded by a newer track, do not continue
     if (playId !== this.currentPlayId) {
       return;
     }
 
-    // If neural mp3 audio succeeded, we're done!
     if (playedSuccessfully) {
+      console.log(`[GitaAudioPlayer] Neural MP3 completed for ch${params.chapter}_v${params.verse}`);
       return;
     }
 
-    // Otherwise, immediately fallback to browser speech synthesis
-    console.log(`[GitaAudioPlayer] Falling back to Web Speech synthesis for ch${params.chapter}_v${params.verse}`);
+    // Only if MP3 fails (e.g. 404 or unsupported codec), fallback to synthetic speech
+    console.warn(`[GitaAudioPlayer] MP3 not available, using fallback speech synthesis.`);
     await params.fallbackRecitation();
   }
 
@@ -65,30 +61,31 @@ class GitaAudioPlayer {
       this.currentAudio = audio;
       let settled = false;
 
-      const finish = (result: boolean) => {
+      const finish = (success: boolean) => {
         if (!settled) {
           settled = true;
-          audio.oncanplaythrough = null;
+          audio.onplay = null;
           audio.onended = null;
           audio.onerror = null;
+          audio.onloadeddata = null;
           if (this.currentAudio === audio) {
             this.currentAudio = null;
           }
-          resolve(result);
+          resolve(success);
         }
       };
 
-      // Safety timeout: if audio takes longer than 4.5 seconds to buffer/respond, trigger fallback
+      // 10-second safety timeout for slow connections
       const timer = setTimeout(() => {
         if (!settled) {
-          console.warn('[GitaAudioPlayer] Audio load timeout on', url);
+          console.warn('[GitaAudioPlayer] Timeout waiting for audio buffer:', url);
           try {
             audio.pause();
             audio.src = '';
           } catch (e) {}
           finish(false);
         }
-      }, 4500);
+      }, 10000);
 
       audio.onended = () => {
         clearTimeout(timer);
@@ -97,30 +94,23 @@ class GitaAudioPlayer {
 
       audio.onerror = (e) => {
         clearTimeout(timer);
-        console.warn('[GitaAudioPlayer] Audio load failed for url:', url, e);
+        console.warn('[GitaAudioPlayer] Audio element error:', url, e);
         finish(false);
       };
 
-      audio.oncanplaythrough = () => {
-        if (playId !== this.currentPlayId) {
-          clearTimeout(timer);
-          try { audio.pause(); } catch (e) {}
-          finish(false);
-          return;
-        }
-
-        // Execute play() directly
-        audio.play().then(() => {
-          // Playing started normally!
-        }).catch((err) => {
-          clearTimeout(timer);
-          console.warn('[GitaAudioPlayer] audio.play() rejected (autoplay or device policy):', err);
-          finish(false);
-        });
-      };
-
+      // Set source and call play directly
+      audio.preload = 'auto';
       audio.src = url;
-      audio.load();
+
+      // In modern browsers, calling audio.play() immediately returns a Promise
+      audio.play().then(() => {
+        // Audio is actively playing!
+        console.log('[GitaAudioPlayer] Audio started playing successfully:', url);
+      }).catch((playErr) => {
+        clearTimeout(timer);
+        console.warn('[GitaAudioPlayer] audio.play() promise rejected:', playErr);
+        finish(false);
+      });
     });
   }
 
